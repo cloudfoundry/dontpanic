@@ -1,0 +1,17 @@
+---
+platform: linux
+
+image_resource:
+  type: registry-image
+  source:
+    repository: cfgarden/garden-ci
+    tag: '2.0.14'
+
+inputs:
+  - name: dontpanic-git-repo
+    path: src/code.cloudfoundry.org/dontpanic
+
+run:
+  dir: src/code.cloudfoundry.org/dontpanic
+  path: ci/scripts/unit-tests.sh
+  user: root
