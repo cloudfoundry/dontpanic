@@ -1,11 +1,7 @@
 package integration_test
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os/exec"
-	"path/filepath"
-	"regexp"
 	"syscall"
 
 	. "github.com/onsi/ginkgo"
@@ -15,6 +11,7 @@ import (
 )
 
 var _ = Describe("Integration", func() {
+
 	It("can run the binary", func() {
 		cmd := exec.Command(dontPanicBin)
 		sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
@@ -51,76 +48,4 @@ var _ = Describe("Integration", func() {
 		// Eventually(sess).Should(gexec.Exit(1))
 	})
 
-	Context("date.log", func() {
-
-		AfterEach(func() {
-			//clean up extract dir
-		})
-
-		FIt("write the date into a date.log file in the os-report dir", func() {
-			Expect(getTarballPath()).To(BeEmpty())
-			cmd := exec.Command(dontPanicBin)
-			sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-			Expect(err).NotTo(HaveOccurred())
-			Eventually(sess).Should(gexec.Exit(0))
-
-			tarball := getTarballPath()
-			Expect(tarball).ToNot(BeEmpty())
-
-			tarballContainsValidDateLog(tarball)
-		})
-	})
 })
-
-func tarballContainsValidDateLog(tarball string) {
-	extractDir := extractTarball(tarball)
-	fmt.Printf("extractDir= %+v\n", extractDir)
-	osReportDir := getOsReportDir(extractDir)
-	fmt.Printf("osReportDir= %+v\n", osReportDir)
-	Expect(osReportDir).ToNot(BeEmpty())
-	dateLogFile := filepath.Join(osReportDir, "date.log")
-	Expect(dateLogFile).To(BeAnExistingFile())
-	contents, err := ioutil.ReadFile(dateLogFile)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(string(contents)).To(MatchRegexp(`foo bar`))
-}
-
-func extractTarball(tarball string) string {
-	tmpDir, err := ioutil.TempDir("", "")
-	Expect(err).NotTo(HaveOccurred())
-	cmd := exec.Command("tar", "xf", tarball, "-C", tmpDir)
-	err = cmd.Run()
-	Expect(err).NotTo(HaveOccurred())
-	return tmpDir
-}
-
-func getOsReportDir(extractDir string) string {
-	entries, err := ioutil.ReadDir(extractDir)
-	Expect(err).NotTo(HaveOccurred())
-	re := regexp.MustCompile(`^os-report-.*-\d\d\d\d-\d\d-\d\d-\d\d-\d\d-\d\d/`)
-	for _, entry := range entries {
-		if re.MatchString(entry.Name()) {
-			return filepath.Join(extractDir, entry.Name())
-		}
-	}
-	return ""
-}
-
-func getTarballPath() string {
-	targetDir := "/var/vcap/data/tmp"
-	dirEntries, err := ioutil.ReadDir(targetDir)
-	if err != nil {
-		return ""
-	}
-
-	re := regexp.MustCompile(`os-report-.*\d\d-\d\d-\d\d.tar.gz`)
-	for _, f := range dirEntries {
-		if f.IsDir() {
-			continue
-		}
-		if re.MatchString(f.Name()) {
-			return filepath.Join(targetDir, f.Name())
-		}
-	}
-	return ""
-}

@@ -4,47 +4,24 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"time"
+
+	"code.cloudfoundry.org/dontpanic/osreporter"
 )
 
-const (
-	tempDirPath        = "/var/vcap/data/tmp"
-	osReportDirPattern = "os-report-%s-%s"
-	osReportTarPattern = tempDirPath + "/os-report-%s-%s.tar.gz"
-)
+const extractDir = "/var/vcap/data/tmp"
 
 func main() {
-
-	if currentUID := os.Getuid(); currentUID != 0 {
-		fmt.Fprintf(os.Stderr, "Keep Calm and Re-run as Root!")
-		os.Exit(1)
-	}
-
-	fmt.Println("<Useful information below, please copy-paste from here>")
-
 	hostname, err := os.Hostname()
 	if err != nil {
+		log.Println("could not determine hostname")
 		hostname = "UNKNOWN-HOSTNAME"
 	}
-	timestamp := time.Now().Format("2006-01-02-15-04-05")
 
-	reportDir := fmt.Sprintf(osReportDirPattern, hostname, timestamp)
-	reportPath := filepath.Join(tempDirPath, reportDir)
+	osReporter := osreporter.New(extractDir, hostname, time.Now())
 
-	tarballPath := fmt.Sprintf(osReportTarPattern, hostname, timestamp)
-
-	err = os.MkdirAll(reportPath, 0755)
-	if err != nil {
-		log.Fatal(err)
+	if err := osReporter.Run(); err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
-
-	createTarball(reportDir, tarballPath)
-}
-
-func createTarball(reportDirName, tarballPath string) error {
-	tarIt := exec.Command("tar", "cf", tarballPath, "-C", tempDirPath, reportDirName)
-	fmt.Printf("tarIt = %+v\n", tarIt)
-	return tarIt.Run()
 }

@@ -63,12 +63,7 @@ run_integration_tests() {
   cmd=$(compile_fly_cmd ci/tasks/integration-tests.yml)
   cmd=$cmd" "$(compile_ginkgo_args $test_path)
 
-  local drivers users
-  users=${GROOTFS_TEST_UID:-0 5000}
-
-  for user in $users; do
-    GROOTFS_TEST_UID=$user GROOTFS_TEST_GID=$user eval $cmd
-  done
+  eval $cmd
 }
 
 run_all_tests() {
