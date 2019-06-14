@@ -2,6 +2,7 @@ package osreporter
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,19 +14,28 @@ const (
 	osReportDirPattern = "os-report-%s-%s"
 )
 
-type Runner struct {
-	baseReportDir string
-	hostname      string
-	timestamp     time.Time
-	ReportPath    string
-	TarballPath   string
+type RegisteredPlugin struct {
+	streamPlugin StreamPlugin
+	name         string
+	filename     string
 }
 
-func New(baseReportDir, hostname string, now time.Time) Runner {
+type Runner struct {
+	hostname      string
+	timestamp     time.Time
+	baseReportDir string
+	out           io.Writer
+	TarballPath   string
+	ReportPath    string
+	plugins       []RegisteredPlugin
+}
+
+func New(baseReportDir, hostname string, now time.Time, out io.Writer) Runner {
 	r := Runner{
 		baseReportDir: baseReportDir,
 		hostname:      hostname,
 		timestamp:     now,
+		out:           out,
 	}
 
 	r.SetPaths()
@@ -40,19 +50,26 @@ func (r *Runner) SetPaths() {
 }
 
 func (r Runner) Run() error {
-	if currentUID := os.Getuid(); currentUID != 0 {
-		fmt.Fprintf(os.Stderr, "Keep Calm and Re-run as Root!")
-		return fmt.Errorf("must be run as root")
-	}
-
-	if err := os.MkdirAll(r.ReportPath, 0755); err != nil {
+	if err := r.sanityCheck(); err != nil {
 		return err
 	}
 
-	fmt.Println("<Useful information below, please copy-paste from here>")
+	fmt.Fprintln(r.out, "<Useful information below, please copy-paste from here>")
 
-	if err := r.writeDate(); err != nil {
-		return err
+	for _, plugin := range r.plugins {
+		fmt.Fprintln(r.out, "## "+plugin.name)
+		if plugin.streamPlugin != nil {
+			out, err := plugin.streamPlugin()
+			if err != nil {
+				fmt.Fprintln(r.out, "Failure:", err.Error())
+				continue
+			}
+			outPath := filepath.Join(r.ReportPath, plugin.filename)
+			err = ioutil.WriteFile(outPath, out, 0644)
+			if err != nil {
+				fmt.Fprintln(r.out, "Failed to write file:", err.Error())
+			}
+		}
 	}
 
 	if err := r.createTarball(); err != nil {
@@ -62,10 +79,17 @@ func (r Runner) Run() error {
 	return nil
 }
 
-func (r Runner) writeDate() error {
-	f := filepath.Join(r.ReportPath, "date.log")
-	d := r.timestamp.Format(time.UnixDate)
-	return ioutil.WriteFile(f, []byte(d), 0644)
+func (r Runner) sanityCheck() error {
+	if currentUID := os.Getuid(); currentUID != 0 {
+		fmt.Fprintf(os.Stderr, "Keep Calm and Re-run as Root!")
+		return fmt.Errorf("must be run as root")
+	}
+
+	if err := os.MkdirAll(r.ReportPath, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, "Cannot create report directory - exiting", err.Error())
+		return err
+	}
+	return nil
 }
 
 func (r Runner) createTarball() error {

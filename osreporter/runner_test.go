@@ -12,25 +12,26 @@ import (
 	"code.cloudfoundry.org/dontpanic/osreporter"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 )
 
-var _ = Describe("osreporter", func() {
+var _ = Describe("runner", func() {
 
 	Context("setting paths", func() {
 		It("sets the os-report path", func() {
 			date := time.Unix(12345, 0)
-			r := osreporter.New("/var/vcap/data/tmp", "my-name", date)
+			r := osreporter.New("/var/vcap/data/tmp", "my-name", date, GinkgoWriter)
 			Expect(r.ReportPath).To(Equal("/var/vcap/data/tmp/os-report-my-name-" + date.Format("2006-01-02-15-04-05")))
 		})
 
 		It("sets the tarball path", func() {
 			date := time.Unix(12345, 0)
-			r := osreporter.New("/var/vcap/data/tmp", "my-name", date)
+			r := osreporter.New("/var/vcap/data/tmp", "my-name", date, GinkgoWriter)
 			Expect(r.TarballPath).To(Equal("/var/vcap/data/tmp/os-report-my-name-" + date.Format("2006-01-02-15-04-05") + ".tar.gz"))
 		})
 	})
 
-	Context("log files", func() {
+	Context("generating tarball from plugin output", func() {
 		var (
 			baseReportDir string
 			extractDir    string
@@ -76,20 +77,46 @@ var _ = Describe("osreporter", func() {
 			os.RemoveAll(extractDir)
 		})
 
-		Context("date.log", func() {
-			It("writes the date into a date.log file in the os-report dir", func() {
-				runner := osreporter.New(baseReportDir, hostname, timestamp)
-				err := runner.Run()
-				Expect(err).NotTo(HaveOccurred())
+		It("writes a log file into the zipped os-report dir", func() {
+			runner := osreporter.New(baseReportDir, hostname, timestamp, GinkgoWriter)
+			plugin := func() ([]byte, error) {
+				return []byte("hello world"), nil
+			}
+			runner.RegisterStream("hello", "hello.log", plugin)
+			err := runner.Run()
+			Expect(err).NotTo(HaveOccurred())
 
-				extractTarball()
+			extractTarball()
 
-				dateLog := filepath.Join(getExtractOsReportPath(), "date.log")
-				Expect(dateLog).To(BeAnExistingFile())
-				contents, err := ioutil.ReadFile(dateLog)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(string(contents)).To(Equal(timestamp.Format(time.UnixDate)))
-			})
+			logPath := filepath.Join(getExtractOsReportPath(), "hello.log")
+			Expect(logPath).To(BeAnExistingFile())
+			contents, err := ioutil.ReadFile(logPath)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(contents)).To(Equal("hello world"))
+		})
+
+		It("notifies when running a plugin", func() {
+			out := gbytes.NewBuffer()
+			runner := osreporter.New(baseReportDir, hostname, timestamp, out)
+			plugin := func() ([]byte, error) {
+				return []byte("hello world"), nil
+			}
+			runner.RegisterStream("hello", "hello.log", plugin)
+			err := runner.Run()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(out).To(gbytes.Say("## hello\n"))
+		})
+
+		It("notifies failure when a plugin returns an error", func() {
+			out := gbytes.NewBuffer()
+			runner := osreporter.New(baseReportDir, hostname, timestamp, out)
+			plugin := func() ([]byte, error) {
+				return nil, fmt.Errorf("foo")
+			}
+			runner.RegisterStream("hello", "hello.log", plugin)
+			err := runner.Run()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(out).To(gbytes.Say("Failure: foo\n"))
 		})
 	})
 })

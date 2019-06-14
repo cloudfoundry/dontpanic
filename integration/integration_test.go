@@ -1,7 +1,11 @@
 package integration_test
 
 import (
+	"io/ioutil"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 
 	. "github.com/onsi/ginkgo"
@@ -9,6 +13,8 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 )
+
+const baseDir = "/var/vcap/data/tmp"
 
 var _ = Describe("Integration", func() {
 
@@ -48,4 +54,40 @@ var _ = Describe("Integration", func() {
 		// Eventually(sess).Should(gexec.Exit(1))
 	})
 
+	It("produces a date.log file", func() {
+		cmd := exec.Command(dontPanicBin)
+		sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(sess).Should(gexec.Exit(0))
+
+		tarball := getTarball()
+		extracteedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
+		dateLogFile := filepath.Join(extracteedOsReportPath, "date.log")
+		Expect(listTarball(tarball)).To(ContainSubstring(dateLogFile))
+	})
+
 })
+
+func getTarball() string {
+	dirEntries, err := ioutil.ReadDir(baseDir)
+	Expect(err).NotTo(HaveOccurred())
+
+	re := regexp.MustCompile(`os-report-.*\.tar\.gz`)
+	for _, info := range dirEntries {
+		if info.IsDir() {
+			continue
+		}
+		if re.MatchString(info.Name()) {
+			return filepath.Join(baseDir, info.Name())
+		}
+	}
+	Fail("tarball not found in " + baseDir)
+	return ""
+}
+
+func listTarball(tarball string) string {
+	cmd := exec.Command("tar", "tf", tarball)
+	files, err := cmd.Output()
+	Expect(err).NotTo(HaveOccurred())
+	return string(files)
+}
