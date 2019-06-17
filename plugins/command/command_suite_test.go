@@ -1,4 +1,4 @@
-package date_test
+package command_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestDate(t *testing.T) {
+func TestCommand(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Date Suite")
+	RunSpecs(t, "Command Suite")
 }

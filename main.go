@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/dontpanic/osreporter"
-	"code.cloudfoundry.org/dontpanic/plugins/date"
-	"code.cloudfoundry.org/dontpanic/plugins/uptime"
+	"code.cloudfoundry.org/dontpanic/plugins/command"
 )
 
 const extractDir = "/var/vcap/data/tmp"
@@ -22,8 +21,8 @@ func main() {
 
 	osReporter := osreporter.New(extractDir, hostname, time.Now(), os.Stdout)
 
-	osReporter.RegisterEchoStream("Date", "date.log", date.Run)
-	osReporter.RegisterEchoStream("Uptime", "uptime.log", uptime.Run)
+	osReporter.RegisterEchoStream("Date", "date.log", command.New("date"))
+	osReporter.RegisterEchoStream("Uptime", "uptime.log", command.New("uptime"))
 
 	if err := osReporter.Run(); err != nil {
 		fmt.Fprint(os.Stderr, err)

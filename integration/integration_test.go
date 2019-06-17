@@ -14,7 +14,11 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-const baseDir = "/var/vcap/data/tmp"
+const (
+	baseDir      = "/var/vcap/data/tmp"
+	dateRegexp   = `\w{3} \w{3} \d{1,2}.*\d{4}.*`
+	uptimeRegexp = `\d{2}:\d{2}:\d{2} up \d+ days, .*,\s+\d users?,\s+load average: \d\.\d\d, \d\.\d\d, \d\.\d\d`
+)
 
 var _ = Describe("Integration", func() {
 	var (
@@ -69,28 +73,41 @@ var _ = Describe("Integration", func() {
 		// Eventually(sess).Should(gexec.Exit(1))
 	})
 
-	When("running with a date plugin", func() {
-		It("produces a date.log file", func() {
+	When("running with standard plugins", func() {
+		It("produces expected log files", func() {
 			Expect(session.ExitCode()).To(Equal(0))
-			tarballShouldContain("date.log")
-		})
-	})
 
-	When("running with a uptime plugin", func() {
-		It("produces a uptime.log file", func() {
-			Expect(session.ExitCode()).To(Equal(0))
-			tarballShouldContain("uptime.log")
+			tarballShouldContainFile("date.log")
+			Expect(string(tarballFileContents("date.log"))).
+				To(MatchRegexp(dateRegexp))
+
+			tarballShouldContainFile("uptime.log")
+			Expect(string(tarballFileContents("uptime.log"))).
+				To(MatchRegexp(uptimeRegexp))
 		})
 	})
 })
 
-func tarballShouldContain(filePath string) {
+func tarballShouldContainFile(filePath string) {
 	tarball := getTarball()
 	ExpectWithOffset(1, tarball).ToNot(BeEmpty(), "tarball not found in "+baseDir)
 
 	extractedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
 	logFilePath := filepath.Join(extractedOsReportPath, filePath)
 	ExpectWithOffset(1, listTarball(tarball)).To(ContainSubstring(logFilePath))
+}
+
+func tarballFileContents(filePath string) []byte {
+	tarball := getTarball()
+	ExpectWithOffset(1, tarball).ToNot(BeEmpty(), "tarball not found in "+baseDir)
+
+	extractedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
+	osDir := filepath.Base(extractedOsReportPath)
+
+	cmd := exec.Command("tar", "xf", tarball, filepath.Join(osDir, filePath), "-O")
+	out, err := cmd.Output()
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	return out
 }
 
 func getTarball() string {
