@@ -1,6 +1,7 @@
 package osreporter_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -98,7 +99,7 @@ var _ = Describe("runner", func() {
 		})
 
 		It("writes a log file into the zipped os-report dir", func() {
-			plugin := func() ([]byte, error) {
+			plugin := func(ctx context.Context) ([]byte, error) {
 				return []byte("hello world"), nil
 			}
 			runner.RegisterStream("hello", "hello.log", plugin)
@@ -116,7 +117,7 @@ var _ = Describe("runner", func() {
 		Context("streaming plugins", func() {
 			When("running a plugin normally", func() {
 				It("notifies start of operation", func() {
-					plugin := func() ([]byte, error) {
+					plugin := func(ctx context.Context) ([]byte, error) {
 						return []byte("hello world"), nil
 					}
 					runner.RegisterStream("hello", "hello.log", plugin)
@@ -128,7 +129,7 @@ var _ = Describe("runner", func() {
 
 			When("echoing output to user", func() {
 				It("shows the use the output also written to the log file", func() {
-					plugin := func() ([]byte, error) {
+					plugin := func(ctx context.Context) ([]byte, error) {
 						return []byte("hello world"), nil
 					}
 					runner.RegisterEchoStream("hello", "hello.log", plugin)
@@ -141,7 +142,7 @@ var _ = Describe("runner", func() {
 
 			When("a plugin returns an error", func() {
 				It("notifies failure", func() {
-					plugin := func() ([]byte, error) {
+					plugin := func(ctx context.Context) ([]byte, error) {
 						return nil, fmt.Errorf("foo")
 					}
 					runner.RegisterStream("hello", "hello.log", plugin)
@@ -153,13 +154,43 @@ var _ = Describe("runner", func() {
 
 			When("the output file cannot be written", func() {
 				It("notifies the problem", func() {
-					plugin := func() ([]byte, error) {
+					plugin := func(ctx context.Context) ([]byte, error) {
 						return []byte("hello world"), nil
 					}
 					runner.RegisterStream("hello", "dirdoesnotexit/hello.log", plugin)
 
 					Expect(runner.Run()).To(Succeed())
 					Expect(outputWriter).To(gbytes.Say("Failed to write file"))
+				})
+			})
+
+			When("a plugin takes too long to run", func() {
+				It("times out with the function timeout helper", func() {
+					plugin := func(ctx context.Context) ([]byte, error) {
+						return osreporter.WithTimeout(ctx, func() ([]byte, error) {
+							time.Sleep(time.Second)
+							return []byte("slept for a second"), nil
+						})
+					}
+					runner.RegisterStream("hello", "hello.log", plugin, time.Millisecond)
+
+					Expect(runner.Run()).To(Succeed())
+					Expect(outputWriter).To(gbytes.Say("timed out after 1ms"))
+				})
+
+				It("times out with the command context runner", func() {
+					plugin := func(ctx context.Context) ([]byte, error) {
+						cmd := exec.CommandContext(ctx, "sleep", "1")
+						bytes, err := cmd.CombinedOutput()
+						if ctx.Err() == context.DeadlineExceeded {
+							return nil, ctx.Err()
+						}
+						return bytes, err
+					}
+					runner.RegisterStream("hello", "hello.log", plugin, 2*time.Millisecond)
+
+					Expect(runner.Run()).To(Succeed())
+					Expect(outputWriter).To(gbytes.Say("timed out after 2ms"))
 				})
 			})
 		})

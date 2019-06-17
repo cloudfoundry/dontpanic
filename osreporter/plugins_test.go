@@ -1,6 +1,7 @@
 package osreporter_test
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"time"
@@ -27,7 +28,7 @@ var _ = Describe("Plugins", func() {
 
 	It("will run a registered stream plugin", func() {
 		run := false
-		plug := func() ([]byte, error) {
+		plug := func(_ context.Context) ([]byte, error) {
 			run = true
 			return nil, nil
 		}

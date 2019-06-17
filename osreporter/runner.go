@@ -1,6 +1,7 @@
 package osreporter
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,6 +20,7 @@ type RegisteredPlugin struct {
 	name         string
 	filename     string
 	echoOutput   bool
+	timeout      time.Duration
 }
 
 type Runner struct {
@@ -28,7 +30,7 @@ type Runner struct {
 	out           io.Writer
 	TarballPath   string
 	ReportPath    string
-	plugins       []RegisteredPlugin
+	plugins       []*RegisteredPlugin
 }
 
 func New(baseReportDir, hostname string, now time.Time, out io.Writer) Runner {
@@ -60,7 +62,7 @@ func (r Runner) Run() error {
 	for _, plugin := range r.plugins {
 		fmt.Fprintln(r.out, "## "+plugin.name)
 		if plugin.streamPlugin != nil {
-			out, err := plugin.streamPlugin()
+			out, err := execute(plugin.streamPlugin, plugin.timeout)
 			if err != nil {
 				fmt.Fprintln(r.out, "Failure:", err.Error())
 				continue
@@ -83,6 +85,17 @@ func (r Runner) Run() error {
 	return nil
 }
 
+func execute(streamPlugin StreamPlugin, timeout time.Duration) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	bytes, err := streamPlugin(ctx)
+	if err == context.DeadlineExceeded {
+		return nil, fmt.Errorf("timed out after %s", timeout)
+	}
+	return bytes, err
+}
+
 func (r Runner) sanityCheck() error {
 	if currentUID := os.Getuid(); currentUID != 0 {
 		fmt.Fprintf(os.Stderr, "Keep Calm and Re-run as Root!")
@@ -99,4 +112,24 @@ func (r Runner) sanityCheck() error {
 func (r Runner) createTarball() error {
 	cmd := exec.Command("tar", "cf", r.TarballPath, "-C", r.baseReportDir, filepath.Base(r.ReportPath))
 	return cmd.Run()
+}
+
+func WithTimeout(ctx context.Context, f func() ([]byte, error)) ([]byte, error) {
+	type bytesErr struct {
+		b []byte
+		e error
+	}
+	done := make(chan bytesErr)
+
+	go func() {
+		out, err := f()
+		done <- bytesErr{[]byte(out), err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case res := <-done:
+		return res.b, res.e
+	}
 }
