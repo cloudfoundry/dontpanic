@@ -75,6 +75,13 @@ var _ = Describe("Integration", func() {
 			tarballShouldContain("date.log")
 		})
 	})
+
+	When("running with a uptime plugin", func() {
+		It("produces a uptime.log file", func() {
+			Expect(session.ExitCode()).To(Equal(0))
+			tarballShouldContain("uptime.log")
+		})
+	})
 })
 
 func tarballShouldContain(filePath string) {
