@@ -18,6 +18,7 @@ type RegisteredPlugin struct {
 	streamPlugin StreamPlugin
 	name         string
 	filename     string
+	echoOutput   bool
 }
 
 type Runner struct {
@@ -63,6 +64,9 @@ func (r Runner) Run() error {
 			if err != nil {
 				fmt.Fprintln(r.out, "Failure:", err.Error())
 				continue
+			}
+			if plugin.echoOutput {
+				fmt.Fprintln(r.out, string(out))
 			}
 			outPath := filepath.Join(r.ReportPath, plugin.filename)
 			err = ioutil.WriteFile(outPath, out, 0644)

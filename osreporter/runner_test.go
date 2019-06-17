@@ -102,8 +102,7 @@ var _ = Describe("runner", func() {
 				return []byte("hello world"), nil
 			}
 			runner.RegisterStream("hello", "hello.log", plugin)
-			err := runner.Run()
-			Expect(err).NotTo(HaveOccurred())
+			Expect(runner.Run()).To(Succeed())
 
 			extractTarball()
 
@@ -114,32 +113,54 @@ var _ = Describe("runner", func() {
 			Expect(string(contents)).To(Equal("hello world"))
 		})
 
-		When("running a plugin", func() {
-			BeforeEach(func() {
-				plugin := func() ([]byte, error) {
-					return []byte("hello world"), nil
-				}
-				runner.RegisterStream("hello", "hello.log", plugin)
+		Context("streaming plugins", func() {
+			When("running a plugin normally", func() {
+				It("notifies start of operation", func() {
+					plugin := func() ([]byte, error) {
+						return []byte("hello world"), nil
+					}
+					runner.RegisterStream("hello", "hello.log", plugin)
+
+					Expect(runner.Run()).To(Succeed())
+					Expect(outputWriter).To(gbytes.Say("## hello\n"))
+				})
 			})
 
-			It("notifies start of operation", func() {
-				Expect(runner.Run()).To(Succeed())
-				Expect(outputWriter).To(gbytes.Say("## hello\n"))
+			When("echoing output to user", func() {
+				It("shows the use the output also written to the log file", func() {
+					plugin := func() ([]byte, error) {
+						return []byte("hello world"), nil
+					}
+					runner.RegisterEchoStream("hello", "hello.log", plugin)
+
+					Expect(runner.Run()).To(Succeed())
+					Expect(outputWriter).To(gbytes.Say("## hello\n"))
+					Expect(outputWriter).To(gbytes.Say("hello world"))
+				})
 			})
 
-		})
+			When("a plugin returns an error", func() {
+				It("notifies failure", func() {
+					plugin := func() ([]byte, error) {
+						return nil, fmt.Errorf("foo")
+					}
+					runner.RegisterStream("hello", "hello.log", plugin)
 
-		When("a plugin returns an error", func() {
-			BeforeEach(func() {
-				plugin := func() ([]byte, error) {
-					return nil, fmt.Errorf("foo")
-				}
-				runner.RegisterStream("hello", "hello.log", plugin)
+					Expect(runner.Run()).To(Succeed())
+					Expect(outputWriter).To(gbytes.Say("Failure: foo\n"))
+				})
 			})
 
-			It("notifies failure", func() {
-				Expect(runner.Run()).To(Succeed())
-				Expect(outputWriter).To(gbytes.Say("Failure: foo\n"))
+			When("the output file cannot be written", func() {
+				It("notifies the problem", func() {
+					plugin := func() ([]byte, error) {
+						return []byte("hello world"), nil
+					}
+					runner.RegisterStream("hello", "dirdoesnotexit/hello.log", plugin)
+
+					Expect(runner.Run()).To(Succeed())
+					Expect(outputWriter).To(gbytes.Say("Failed to write file"))
+				})
 			})
 		})
 	})
