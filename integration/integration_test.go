@@ -17,25 +17,40 @@ import (
 const baseDir = "/var/vcap/data/tmp"
 
 var _ = Describe("Integration", func() {
+	var (
+		session *gexec.Session
+		cmd     *exec.Cmd
+	)
 
-	It("can run the binary", func() {
-		cmd := exec.Command(dontPanicBin)
-		sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-		Expect(err).NotTo(HaveOccurred())
-		Eventually(sess).Should(gexec.Exit(0))
-		Expect(sess).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
+	BeforeEach(func() {
+		cmd = exec.Command(dontPanicBin)
 	})
 
-	It("does not run as non-root user", func() {
-		cmd := exec.Command(dontPanicBin)
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Credential: &syscall.Credential{Uid: 5000, Gid: 5000},
-		}
-		sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
+	JustBeforeEach(func() {
+		var err error
+		session, err = gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 		Expect(err).NotTo(HaveOccurred())
-		Eventually(sess).Should(gexec.Exit())
-		Expect(sess.ExitCode()).ToNot(Equal(0))
-		Expect(sess.Err).To(gbytes.Say("Keep Calm and Re-run as Root!"))
+		Eventually(session).Should(gexec.Exit())
+	})
+
+	When("running normally", func() {
+		It("runs the binary and shows the initial messages", func() {
+			Expect(session.ExitCode()).To(Equal(0))
+			Expect(session).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
+		})
+	})
+
+	When("running as a non-root user", func() {
+		BeforeEach(func() {
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				Credential: &syscall.Credential{Uid: 5000, Gid: 5000},
+			}
+		})
+
+		It("warns and exits", func() {
+			Expect(session.ExitCode()).ToNot(Equal(0))
+			Expect(session.Err).To(gbytes.Say("Keep Calm and Re-run as Root!"))
+		})
 	})
 
 	It("does not allow execution within a BPM container", func() {
@@ -54,23 +69,26 @@ var _ = Describe("Integration", func() {
 		// Eventually(sess).Should(gexec.Exit(1))
 	})
 
-	It("produces a date.log file", func() {
-		cmd := exec.Command(dontPanicBin)
-		sess, err := gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
-		Expect(err).NotTo(HaveOccurred())
-		Eventually(sess).Should(gexec.Exit(0))
-
-		tarball := getTarball()
-		extracteedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
-		dateLogFile := filepath.Join(extracteedOsReportPath, "date.log")
-		Expect(listTarball(tarball)).To(ContainSubstring(dateLogFile))
+	When("running with a date plugin", func() {
+		It("produces a date.log file", func() {
+			Expect(session.ExitCode()).To(Equal(0))
+			tarballShouldContain("date.log")
+		})
 	})
-
 })
+
+func tarballShouldContain(filePath string) {
+	tarball := getTarball()
+	ExpectWithOffset(1, tarball).ToNot(BeEmpty(), "tarball not found in "+baseDir)
+
+	extractedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
+	logFilePath := filepath.Join(extractedOsReportPath, filePath)
+	ExpectWithOffset(1, listTarball(tarball)).To(ContainSubstring(logFilePath))
+}
 
 func getTarball() string {
 	dirEntries, err := ioutil.ReadDir(baseDir)
-	Expect(err).NotTo(HaveOccurred())
+	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 
 	re := regexp.MustCompile(`os-report-.*\.tar\.gz`)
 	for _, info := range dirEntries {
@@ -81,13 +99,12 @@ func getTarball() string {
 			return filepath.Join(baseDir, info.Name())
 		}
 	}
-	Fail("tarball not found in " + baseDir)
 	return ""
 }
 
 func listTarball(tarball string) string {
 	cmd := exec.Command("tar", "tf", tarball)
 	files, err := cmd.Output()
-	Expect(err).NotTo(HaveOccurred())
+	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 	return string(files)
 }
