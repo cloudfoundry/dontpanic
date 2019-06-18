@@ -23,6 +23,8 @@ func main() {
 
 	osReporter.RegisterEchoStream("Date", "date.log", command.New("date"))
 	osReporter.RegisterEchoStream("Uptime", "uptime.log", command.New("uptime"))
+	osReporter.RegisterEchoStream("Garden Version", "gdn-version.log", command.New("/var/vcap/packages/guardian/bin/gdn -v"))
+	osReporter.RegisterEchoStream("Hostname", "hostname.log", command.New("hostname"))
 
 	if err := osReporter.Run(); err != nil {
 		fmt.Fprint(os.Stderr, err)

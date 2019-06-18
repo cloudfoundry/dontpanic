@@ -84,6 +84,10 @@ var _ = Describe("Integration", func() {
 			tarballShouldContainFile("uptime.log")
 			Expect(string(tarballFileContents("uptime.log"))).
 				To(MatchRegexp(uptimeRegexp))
+
+			Expect(session).To(gbytes.Say("## Garden Version"))
+
+			tarballShouldContainFile("hostname.log")
 		})
 	})
 })
