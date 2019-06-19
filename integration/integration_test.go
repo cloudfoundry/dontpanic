@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -17,7 +18,7 @@ import (
 const (
 	baseDir      = "/var/vcap/data/tmp"
 	dateRegexp   = `\w{3} \w{3} \d{1,2}.*\d{4}.*`
-	uptimeRegexp = `\d{2}:\d{2}:\d{2} up \d+ days, .*,\s+\d users?,\s+load average: \d\.\d\d, \d\.\d\d, \d\.\d\d`
+	uptimeRegexp = `day.*user.*load average`
 )
 
 var _ = Describe("Integration", func() {
@@ -27,6 +28,9 @@ var _ = Describe("Integration", func() {
 	)
 
 	BeforeEach(func() {
+		Expect(os.MkdirAll("/var/vcap/jobs/garden/config", 0755)).To(Succeed())
+		Expect(ioutil.WriteFile("/var/vcap/jobs/garden/config/config.ini", []byte("hi"), 0644)).To(Succeed())
+
 		cmd = exec.Command(dontPanicBin)
 	})
 
@@ -37,11 +41,31 @@ var _ = Describe("Integration", func() {
 		Eventually(session).Should(gexec.Exit())
 	})
 
-	When("running normally", func() {
-		It("runs the binary and shows the initial messages", func() {
-			Expect(session.ExitCode()).To(Equal(0))
-			Expect(session).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
-		})
+	It("produces a report correctly", func() {
+		By("suceeding")
+		Expect(session.ExitCode()).To(Equal(0))
+
+		By("showing an initial message")
+		Expect(session).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
+
+		By("collecting the date")
+		tarballShouldContainFile("date.log")
+		Expect(string(tarballFileContents("date.log"))).
+			To(MatchRegexp(dateRegexp))
+
+		By("collecting the uptime")
+		tarballShouldContainFile("uptime.log")
+		Expect(string(tarballFileContents("uptime.log"))).
+			To(MatchRegexp(uptimeRegexp))
+
+		By("collecting the garden version")
+		Expect(session).To(gbytes.Say("## Garden Version"))
+
+		By("collecting the hostname")
+		tarballShouldContainFile("hostname.log")
+
+		// tarballShouldContainFile("config.ini")
+		// Expect(string(tarballFileContents("config.ini"))).To(Equal("hi"))
 	})
 
 	When("running as a non-root user", func() {
@@ -57,37 +81,21 @@ var _ = Describe("Integration", func() {
 		})
 	})
 
-	It("does not allow execution within a BPM container", func() {
-		Skip("return to this")
-		// wd, err := os.Getwd()
-		// Expect(err).NotTo(HaveOccurred())
-		// Expect(os.Symlink(dontPanicBin, wd+"/assets/rootfs/bin/dontPanicBin")).To(Succeed())
-		//
-		// runcRun := exec.Command("runc", "run", "assets/config.json", "fake-bpm-container")
-		// _, err = gexec.Start(runcRun, GinkgoWriter, GinkgoWriter)
-		// Expect(err).NotTo(HaveOccurred())
-		//
-		// runcExec := exec.Command("runc", "exec", "fake-bpm-container", "/bin/dontPanicBin")
-		// sess, err := gexec.Start(runcExec, GinkgoWriter, GinkgoWriter)
-		// Expect(err).NotTo(HaveOccurred())
-		// Eventually(sess).Should(gexec.Exit(1))
-	})
-
-	When("running with standard plugins", func() {
-		It("produces expected log files", func() {
-			Expect(session.ExitCode()).To(Equal(0))
-
-			tarballShouldContainFile("date.log")
-			Expect(string(tarballFileContents("date.log"))).
-				To(MatchRegexp(dateRegexp))
-
-			tarballShouldContainFile("uptime.log")
-			Expect(string(tarballFileContents("uptime.log"))).
-				To(MatchRegexp(uptimeRegexp))
-
-			Expect(session).To(gbytes.Say("## Garden Version"))
-
-			tarballShouldContainFile("hostname.log")
+	When("running in BPM", func() {
+		It("fails", func() {
+			Skip("return to this")
+			// wd, err := os.Getwd()
+			// Expect(err).NotTo(HaveOccurred())
+			// Expect(os.Symlink(dontPanicBin, wd+"/assets/rootfs/bin/dontPanicBin")).To(Succeed())
+			//
+			// runcRun := exec.Command("runc", "run", "assets/config.json", "fake-bpm-container")
+			// _, err = gexec.Start(runcRun, GinkgoWriter, GinkgoWriter)
+			// Expect(err).NotTo(HaveOccurred())
+			//
+			// runcExec := exec.Command("runc", "exec", "fake-bpm-container", "/bin/dontPanicBin")
+			// sess, err := gexec.Start(runcExec, GinkgoWriter, GinkgoWriter)
+			// Expect(err).NotTo(HaveOccurred())
+			// Eventually(sess).Should(gexec.Exit(1))
 		})
 	})
 })
