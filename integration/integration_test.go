@@ -42,7 +42,7 @@ var _ = Describe("Integration", func() {
 	})
 
 	It("produces a report correctly", func() {
-		By("suceeding")
+		By("succeeding")
 		Expect(session.ExitCode()).To(Equal(0))
 
 		By("showing an initial message")

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type Runner struct {
+type Reporter struct {
 	stdout     io.Writer
 	reportPath string
 	collectors []RegisteredCollector
@@ -21,22 +21,22 @@ type Collector interface {
 	Run(context.Context, string, io.Writer) error
 }
 
-func New(reportPath string, stdout io.Writer) Runner {
-	return Runner{
+func New(reportPath string, stdout io.Writer) Reporter {
+	return Reporter{
 		reportPath: reportPath,
 		stdout:     stdout,
 	}
 }
 
-func (r *Runner) RegisterCollector(name string, collector Collector, timeout ...time.Duration) {
+func (r *Reporter) RegisterCollector(name string, collector Collector, timeout ...time.Duration) {
 	r.registerCollector(name, collector, false, timeout...)
 }
 
-func (r *Runner) RegisterNoisyCollector(name string, collector Collector, timeout ...time.Duration) {
+func (r *Reporter) RegisterNoisyCollector(name string, collector Collector, timeout ...time.Duration) {
 	r.registerCollector(name, collector, true, timeout...)
 }
 
-func (r *Runner) registerCollector(name string, collector Collector, echoOutput bool, timeout ...time.Duration) {
+func (r *Reporter) registerCollector(name string, collector Collector, echoOutput bool, timeout ...time.Duration) {
 	maxDuration := 10 * time.Second
 	if len(timeout) > 0 {
 		maxDuration = timeout[0]
@@ -51,7 +51,7 @@ func (r *Runner) registerCollector(name string, collector Collector, echoOutput 
 	r.collectors = append(r.collectors, registeredCollector)
 }
 
-func (r Runner) Run() error {
+func (r Reporter) Run() error {
 	fmt.Fprintln(r.stdout, "<Useful information below, please copy-paste from here>")
 
 	for _, collector := range r.collectors {
@@ -75,7 +75,7 @@ func (r Runner) Run() error {
 	return nil
 }
 
-func (r Runner) createTarball() error {
+func (r Reporter) createTarball() error {
 	return exec.Command("tar", "cf", r.reportPath+".tar.gz", "-C", filepath.Dir(r.reportPath), filepath.Base(r.reportPath)).Run()
 }
 

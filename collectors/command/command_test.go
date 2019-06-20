@@ -5,7 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
-	"time"
+	"strings"
 
 	"code.cloudfoundry.org/dontpanic/collectors/command"
 	. "github.com/onsi/ginkgo"
@@ -17,7 +17,6 @@ var _ = Describe("Command Runner", func() {
 	var (
 		cmd      string
 		ctx      context.Context
-		cancel   context.CancelFunc
 		dstPath  string
 		stdout   io.Writer
 		filename string
@@ -34,7 +33,7 @@ var _ = Describe("Command Runner", func() {
 	})
 
 	JustBeforeEach(func() {
-		err = command.New(cmd, filename).Run(ctx, dstPath, stdout)
+		err = command.NewCollector(cmd, filename).Run(ctx, dstPath, stdout)
 	})
 
 	When("cmd is a simple executable", func() {
@@ -63,22 +62,7 @@ var _ = Describe("Command Runner", func() {
 
 			fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(fileContents).To(Equal([]byte("9\n")))
-		})
-	})
-
-	When("cmd exceeds time limit", func() {
-		BeforeEach(func() {
-			ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond)
-			cmd = "sleep 1"
-		})
-
-		AfterEach(func() {
-			cancel()
-		})
-
-		It("times out", func() {
-			Expect(err).To(Equal(context.DeadlineExceeded))
+			Expect(strings.Trim(string(fileContents), " ")).To(Equal("9\n"))
 		})
 	})
 

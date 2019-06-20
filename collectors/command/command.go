@@ -2,35 +2,30 @@ package command
 
 import (
 	"context"
-	"errors"
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
+
+	"code.cloudfoundry.org/dontpanic/commandrunner"
 )
 
 type Collector struct {
 	cmd      string
 	filename string
+	runner   commandrunner.CommandRunner
 }
 
-func New(cmd, filename string) Collector {
-	return Collector{cmd: cmd, filename: filename}
+func NewCollector(cmd, filename string) Collector {
+	return Collector{
+		cmd:      cmd,
+		filename: filename,
+		runner:   commandrunner.CommandRunner{},
+	}
 }
 
 func (c Collector) Run(ctx context.Context, destPath string, stdout io.Writer) error {
-	cmd := exec.CommandContext(ctx, "sh", "-c", c.cmd)
-	out, err := cmd.Output()
-
-	if ctx.Err() == context.DeadlineExceeded {
-		return ctx.Err()
-	}
-
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		return errors.New(string(exitErr.Stderr))
-	}
-
+	out, err := c.runner.Run(ctx, "sh", "-c", c.cmd)
 	if err != nil {
 		return err
 	}

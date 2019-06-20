@@ -19,7 +19,7 @@ import (
 
 var _ = Describe("Reporter", func() {
 	var (
-		runner       osreporter.Runner
+		runner       osreporter.Reporter
 		outputWriter io.Writer
 		collectorOne *osreporterfakes.FakeCollector
 		collectorTwo *osreporterfakes.FakeCollector

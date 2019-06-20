@@ -20,10 +20,10 @@ func main() {
 
 	osReporter := osreporter.New(reportDir, os.Stdout)
 
-	osReporter.RegisterNoisyCollector("Date", command.New("date", "date.log"))
-	osReporter.RegisterNoisyCollector("Uptime", command.New("uptime", "uptime.log"))
-	osReporter.RegisterNoisyCollector("Garden Version", command.New("/var/vcap/packages/guardian/bin/gdn -v", "gdn-version.log"))
-	osReporter.RegisterNoisyCollector("Hostname", command.New("hostname", "hostname.log"))
+	osReporter.RegisterNoisyCollector("Date", command.NewCollector("date", "date.log"))
+	osReporter.RegisterNoisyCollector("Uptime", command.NewCollector("uptime", "uptime.log"))
+	osReporter.RegisterNoisyCollector("Garden Version", command.NewCollector("/var/vcap/packages/guardian/bin/gdn -v", "gdn-version.log"))
+	osReporter.RegisterNoisyCollector("Hostname", command.NewCollector("hostname", "hostname.log"))
 
 	if err := osReporter.Run(); err != nil {
 		fmt.Fprint(os.Stderr, err)
@@ -32,7 +32,7 @@ func main() {
 }
 
 func checkIsRoot() {
-	if currentUID := os.Getuid(); currentUID != 0 {
+	if currentUID := os.Geteuid(); currentUID != 0 {
 		log.Fatalf("Keep Calm and Re-run as Root!")
 	}
 }
