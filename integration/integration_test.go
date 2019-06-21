@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -23,22 +24,55 @@ const (
 
 var _ = Describe("Integration", func() {
 	var (
-		session *gexec.Session
-		cmd     *exec.Cmd
+		session         *gexec.Session
+		cmd             *exec.Cmd
+		gardenConfigDir = "/var/vcap/jobs/garden/config"
+		gardenLogDir    = "/var/vcap/sys/log/garden"
+		varLogDir       = "/var/log"
+		gardenDepotDir  = "/var/vcap/data/garden/depot"
+		monitDir        = "/var/vcap/monit"
 	)
 
 	BeforeEach(func() {
-		Expect(os.MkdirAll("/var/vcap/jobs/garden/config", 0755)).To(Succeed())
-		Expect(ioutil.WriteFile("/var/vcap/jobs/garden/config/config.ini", []byte("hi"), 0644)).To(Succeed())
+		Expect(os.MkdirAll(gardenConfigDir, 0755)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "config.ini"), []byte("hi"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "privileged_grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "bpm.yml"), []byte("bpm"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "containerd.toml"), []byte("nerd"), 0644)).To(Succeed())
+
+		Expect(os.MkdirAll(gardenLogDir, 0755)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenLogDir, "garden.log"), []byte("cur"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenLogDir, "garden.log.1"), []byte("prev"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(gardenLogDir, "garden.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+		Expect(os.MkdirAll(varLogDir, 0755)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "kern.log"), []byte("cur"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "kern.log.1"), []byte("prev"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "kern.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "syslog"), []byte("cur"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "syslog.1"), []byte("prev"), 0644)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "syslog.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+		Expect(os.MkdirAll(monitDir, 0755)).To(Succeed())
+		Expect(ioutil.WriteFile(filepath.Join(monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())
+
+		Expect(os.MkdirAll(filepath.Join(gardenDepotDir, "container1"), 0755)).To(Succeed())
 
 		cmd = exec.Command(dontPanicBin)
+	})
+
+	AfterEach(func() {
+		Expect(os.RemoveAll(gardenConfigDir)).To(Succeed())
+		Expect(os.RemoveAll(gardenLogDir)).To(Succeed())
 	})
 
 	JustBeforeEach(func() {
 		var err error
 		session, err = gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 		Expect(err).NotTo(HaveOccurred())
-		Eventually(session).Should(gexec.Exit())
+		Eventually(session, time.Second*50).Should(gexec.Exit())
 	})
 
 	It("produces a report correctly", func() {
@@ -64,8 +98,129 @@ var _ = Describe("Integration", func() {
 		By("collecting the hostname")
 		tarballShouldContainFile("hostname.log")
 
-		// tarballShouldContainFile("config.ini")
-		// Expect(string(tarballFileContents("config.ini"))).To(Equal("hi"))
+		By("collecting the free memory")
+		tarballShouldContainFile("free.log")
+		Expect(string(tarballFileContents("free.log"))).
+			To(ContainSubstring("Mem:"))
+
+		By("collecting the kernel details")
+		tarballShouldContainFile("uname.log")
+		Expect(string(tarballFileContents("uname.log"))).
+			To(ContainSubstring("Linux"))
+
+		By("collecting monit summary")
+		Expect(session).To(gbytes.Say("## Monit Summary"))
+
+		By("collecting the number of containers")
+		tarballShouldContainFile("num-containers.log")
+		Expect(string(tarballFileContents("num-containers.log"))).
+			To(ContainSubstring("1"))
+
+		By("collecting the number of open files")
+		tarballShouldContainFile("num-open-files.log")
+		Expect(tarballFileContents("num-open-files.log")).ToNot(BeEmpty())
+
+		By("collecting the max number of open files")
+		tarballShouldContainFile("file-max.log")
+		Expect(tarballFileContents("file-max.log")).ToNot(BeEmpty())
+
+		By("collecting the disk usage")
+		tarballShouldContainFile("df.log")
+		Expect(tarballFileContents("df.log")).To(ContainSubstring("Filesystem"))
+
+		By("collecting the open files")
+		tarballShouldContainFile("lsof.log")
+		Expect(tarballFileContents("lsof.log")).To(ContainSubstring("COMMAND"))
+
+		By("collecting the process information")
+		tarballShouldContainFile("ps-info.log")
+		Expect(tarballFileContents("ps-info.log")).To(ContainSubstring("PID"))
+
+		By("collecting the process forest information")
+		tarballShouldContainFile("ps-forest.log")
+		Expect(tarballFileContents("ps-forest.log")).To(ContainSubstring("USER"))
+
+		By("collecting the dmesg")
+		tarballShouldContainFile("dmesg.log")
+		Expect(tarballFileContents("dmesg.log")).
+			To(MatchRegexp(dateRegexp))
+
+		By("collecting the network interfaces")
+		tarballShouldContainFile("ifconfig.log")
+		Expect(tarballFileContents("ifconfig.log")).To(ContainSubstring("Link"))
+
+		By("collecting the firewall configuration")
+		tarballShouldContainFile("iptables-L.log")
+		Expect(tarballFileContents("iptables-L.log")).To(ContainSubstring("Chain"))
+
+		By("collecting the NAT info")
+		tarballShouldContainFile("iptables-tnat.log")
+		Expect(tarballFileContents("iptables-tnat.log")).To(ContainSubstring("Chain"))
+
+		By("collecting the mount table")
+		Expect(session).To(gbytes.Say("## Mount Table"))
+
+		By("collecting Garden depot contents")
+		tarballShouldContainFile("depot-contents.log")
+		Expect(tarballFileContents("depot-contents.log")).To(ContainSubstring("depot"))
+
+		By("collecting XFS fragmentation info")
+		Expect(session).To(gbytes.Say("## XFS Fragmentation"))
+
+		By("collecting XFS info")
+		Expect(session).To(gbytes.Say("## XFS Info"))
+
+		By("collecting Slabinfo")
+		tarballShouldContainFile("slabinfo.log")
+		Expect(tarballFileContents("slabinfo.log")).To(ContainSubstring("active_objs"))
+
+		By("collecting Meminfo")
+		tarballShouldContainFile("meminfo.log")
+		Expect(tarballFileContents("meminfo.log")).To(ContainSubstring("MemTotal"))
+
+		// TODO: add iostat to image
+		// By("collecting iostat")
+		// tarballShouldContainFile("iostat.log")
+		// Expect(tarballFileContents("iostat.log")).To(ContainSubstring("Linux"))
+
+		By("collecting vm statistics")
+		tarballShouldContainFile("vmstat-s.log")
+		Expect(tarballFileContents("vmstat-s.log")).To(ContainSubstring("memory"))
+
+		By("collecting disk statistics")
+		tarballShouldContainFile("vmstat-d.log")
+		Expect(tarballFileContents("vmstat-d.log")).To(ContainSubstring("disk"))
+
+		By("collecting active and inactive memory statistics")
+		tarballShouldContainFile("vmstat-a.log")
+		Expect(tarballFileContents("vmstat-a.log")).To(ContainSubstring("memory"))
+
+		By("collecting the kernel logs")
+		tarballShouldContainFile("kernel-logs/kern.log")
+		tarballShouldContainFile("kernel-logs/kern.log.1")
+		tarballShouldContainFile("kernel-logs/kern.log.2.gz")
+
+		By("collecting monit log")
+		tarballShouldContainFile("monit.log")
+		Expect(tarballFileContents("monit.log")).To(ContainSubstring("monit"))
+
+		By("collecting the syslogs")
+		tarballShouldContainFile("syslogs/syslog")
+		tarballShouldContainFile("syslogs/syslog.1")
+		tarballShouldContainFile("syslogs/syslog.2.gz")
+
+		By("collecting all garden config")
+		tarballShouldContainFile("config/config.ini")
+		Expect(string(tarballFileContents("config/config.ini"))).To(Equal("hi"))
+		tarballShouldContainFile("config/grootfs_config.yml")
+		tarballShouldContainFile("config/privileged_grootfs_config.yml")
+		tarballShouldContainFile("config/bpm.yml")
+		tarballShouldContainFile("config/containerd.toml")
+
+		By("collecting the garden logs")
+		tarballShouldContainFile("garden/garden.log")
+		tarballShouldContainFile("garden/garden.log.1")
+		tarballShouldContainFile("garden/garden.log.2.gz")
 	})
 
 	When("running as a non-root user", func() {
