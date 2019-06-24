@@ -179,10 +179,9 @@ var _ = Describe("Integration", func() {
 		tarballShouldContainFile("meminfo.log")
 		Expect(tarballFileContents("meminfo.log")).To(ContainSubstring("MemTotal"))
 
-		// TODO: add iostat to image
-		// By("collecting iostat")
-		// tarballShouldContainFile("iostat.log")
-		// Expect(tarballFileContents("iostat.log")).To(ContainSubstring("Linux"))
+		By("collecting iostat")
+		tarballShouldContainFile("iostat.log")
+		Expect(tarballFileContents("iostat.log")).To(ContainSubstring("Linux"))
 
 		By("collecting vm statistics")
 		tarballShouldContainFile("vmstat-s.log")

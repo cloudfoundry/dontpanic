@@ -47,7 +47,7 @@ func main() {
 	osReporter.RegisterCollector("XFS Info", command.NewCollector("xfs_info /var/vcap/data/grootfs/store/unprivileged", "xfs-info.log"))
 	osReporter.RegisterCollector("Slabinfo", command.NewCollector("cat /proc/slabinfo", "slabinfo.log"))
 	osReporter.RegisterCollector("Meminfo", command.NewCollector("cat /proc/meminfo", "meminfo.log"))
-	// osReporter.RegisterCollector("IOSTAT -xdm (slow)", command.NewCollector("iostat -x -d -m 5 3", "iostat.log"), time.Second*16)
+	osReporter.RegisterCollector("IOSTAT -xdm (slow)", command.NewCollector("iostat -x -d -m 5 3", "iostat.log"), time.Second*16)
 	osReporter.RegisterCollector("VMSTAT -s", command.NewCollector("vmstat -s", "vmstat-s.log"))
 	osReporter.RegisterCollector("VMSTAT -d (slow)", command.NewCollector("vmstat -d 5 3", "vmstat-d.log"), time.Second*16)
 	osReporter.RegisterCollector("VMSTAT -a (slow)", command.NewCollector("vmstat -a 5 3", "vmstat-a.log"), time.Second*16)
