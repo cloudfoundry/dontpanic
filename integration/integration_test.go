@@ -83,6 +83,11 @@ var _ = Describe("Integration", func() {
 		By("showing an initial message")
 		Expect(session).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
 
+		By("writing a logfile containing all steps")
+		tarballShouldContainFile("dontpanic.log")
+		Expect(string(tarballFileContents("dontpanic.log"))).
+			To(ContainSubstring("## Date"))
+
 		By("collecting the date")
 		tarballShouldContainFile("date.log")
 		Expect(string(tarballFileContents("date.log"))).

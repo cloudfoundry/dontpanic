@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/logrusorgru/aurora"
 
 	"code.cloudfoundry.org/dontpanic/collectors/command"
 	"code.cloudfoundry.org/dontpanic/collectors/file"
@@ -51,7 +52,7 @@ func main() {
 	osReporter.RegisterCollector("VMSTAT -s", command.NewCollector("vmstat -s", "vmstat-s.log"))
 	osReporter.RegisterCollector("VMSTAT -d (slow)", command.NewCollector("vmstat -d 5 3", "vmstat-d.log"), time.Second*16)
 	osReporter.RegisterCollector("VMSTAT -a (slow)", command.NewCollector("vmstat -a 5 3", "vmstat-a.log"), time.Second*16)
-	osReporter.RegisterCollector("Mass Process Data", process.NewCollector("process-data"), time.Second*3)
+	osReporter.RegisterCollector("Mass Process Data", process.NewCollector("process-data"))
 
 	osReporter.RegisterCollector("Kernel Log", file.NewCollector("/var/log/kern.log*", "kernel-logs/"))
 	osReporter.RegisterCollector("Monit Log", file.NewCollector("/var/vcap/monit/monit.log", "monit.log"))
@@ -67,32 +68,35 @@ func main() {
 
 func checkIsRoot() {
 	if currentUID := os.Geteuid(); currentUID != 0 {
-		log.Fatalf("Keep Calm and Re-run as Root!")
+		fmt.Fprintln(os.Stderr, aurora.Red("Keep Calm and Re-run as Root!").Bold())
+		os.Exit(1)
 	}
 }
 
 func checkIsNotBpm() {
 	contents, err := ioutil.ReadFile("/proc/1/cmdline")
 	if err != nil {
-		log.Fatalf("Cannot determine if running in bpm: cannot read cmdline")
+		fmt.Fprintln(os.Stderr, aurora.Red("Cannot determine if running in bpm: cannot read cmdline").Bold())
+		os.Exit(1)
 	}
 
 	if bytes.Contains(contents, []byte("garden_start")) {
-		log.Fatalf("Keep Calm and Re-run outside the BPM container!")
+		fmt.Fprintln(os.Stderr, aurora.Red("Keep Calm and Re-run outside the BPM container!").Bold())
+		os.Exit(1)
 	}
 }
 
 func createReportDir(baseDir string) string {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Println("could not determine hostname")
+		fmt.Println(aurora.Magenta("could not determine hostname"))
 		hostname = "UNKNOWN-HOSTNAME"
 	}
 	timestamp := time.Now().Format("2006-01-02-15-04-05")
 	reportDir := fmt.Sprintf("os-report-%s-%s", hostname, timestamp)
 	path := filepath.Join(baseDir, reportDir)
 	if err := os.MkdirAll(path, 0755); err != nil {
-		log.Fatalf("cannot create report directory %q: %s", path, err.Error())
+		fmt.Fprintln(os.Stderr, aurora.Red(fmt.Sprintf("cannot create report directory %q: %s", path, err.Error())))
 	}
 	return path
 }

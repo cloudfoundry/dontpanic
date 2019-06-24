@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/logrusorgru/aurora"
 )
 
 type Reporter struct {
@@ -52,10 +55,16 @@ func (r *Reporter) registerCollector(name string, collector Collector, echoOutpu
 }
 
 func (r Reporter) Run() error {
-	fmt.Fprintln(r.stdout, "<Useful information below, please copy-paste from here>")
+	fmt.Fprintln(r.stdout, aurora.Green("<Useful information below, please copy-paste from here>").Bold())
+
+	logFile, err := os.Create(filepath.Join(r.reportPath, "dontpanic.log"))
+	if err != nil {
+		return err
+	}
 
 	for _, collector := range r.collectors {
-		fmt.Fprintln(r.stdout, "## "+collector.name)
+		fmt.Fprintln(r.stdout, aurora.Cyan("## "+collector.name).Bold())
+		fmt.Fprintln(logFile, "## "+collector.name)
 
 		out := ioutil.Discard
 		if collector.echoOutput {
@@ -64,15 +73,12 @@ func (r Reporter) Run() error {
 
 		err := collector.Run(r.reportPath, out)
 		if err != nil {
-			fmt.Fprintln(r.stdout, "Failure:", err.Error())
+			fmt.Fprintln(r.stdout, aurora.Red(fmt.Errorf("Failure: %s", err.Error())))
+			fmt.Fprintln(logFile, "Failure: ", err.Error())
 		}
 	}
 
-	if err := r.createTarball(); err != nil {
-		return err
-	}
-
-	return nil
+	return r.createTarball()
 }
 
 func (r Reporter) createTarball() error {

@@ -3,6 +3,7 @@ module code.cloudfoundry.org/dontpanic
 go 1.12
 
 require (
+	github.com/logrusorgru/aurora v0.0.0-20190428105938-cea283e61946
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
