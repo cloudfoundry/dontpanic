@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -194,6 +195,14 @@ var _ = Describe("Integration", func() {
 		By("collecting active and inactive memory statistics")
 		tarballShouldContainFile("vmstat-a.log")
 		Expect(tarballFileContents("vmstat-a.log")).To(ContainSubstring("memory"))
+
+		By("collecting mass process data")
+		currentPid := os.Getpid()
+		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "fd"))
+		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "ns"))
+		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "cgroup"))
+		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "stack"))
+		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "status"))
 
 		By("collecting the kernel logs")
 		tarballShouldContainFile("kernel-logs/kern.log")

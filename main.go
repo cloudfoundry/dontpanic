@@ -11,6 +11,7 @@ import (
 
 	"code.cloudfoundry.org/dontpanic/collectors/command"
 	"code.cloudfoundry.org/dontpanic/collectors/file"
+	"code.cloudfoundry.org/dontpanic/collectors/process"
 	"code.cloudfoundry.org/dontpanic/osreporter"
 )
 
@@ -50,11 +51,11 @@ func main() {
 	osReporter.RegisterCollector("VMSTAT -s", command.NewCollector("vmstat -s", "vmstat-s.log"))
 	osReporter.RegisterCollector("VMSTAT -d (slow)", command.NewCollector("vmstat -d 5 3", "vmstat-d.log"), time.Second*16)
 	osReporter.RegisterCollector("VMSTAT -a (slow)", command.NewCollector("vmstat -a 5 3", "vmstat-a.log"), time.Second*16)
+	osReporter.RegisterCollector("Mass Process Data", process.NewCollector("process-data"), time.Second*3)
 
 	osReporter.RegisterCollector("Kernel Log", file.NewCollector("/var/log/kern.log*", "kernel-logs/"))
 	osReporter.RegisterCollector("Monit Log", file.NewCollector("/var/vcap/monit/monit.log", "monit.log"))
 	osReporter.RegisterCollector("Syslog", file.NewCollector("/var/log/syslog*", "syslogs/"))
-
 	osReporter.RegisterCollector("Garden Config", file.NewDirCollector("/var/vcap/jobs/garden/config", ""))
 	osReporter.RegisterCollector("Garden Logs", file.NewDirCollector("/var/vcap/sys/log/garden", ""))
 
