@@ -63,8 +63,8 @@ var _ = Describe("Reporter", func() {
 	It("runs all collectors in sequence", func() {
 		Expect(runner.Run()).To(Succeed())
 
-		Expect(outputWriter).To(gbytes.Say("## collector-one\n"))
-		Expect(outputWriter).To(gbytes.Say("## collector-two\n"))
+		Expect(outputWriter).To(gbytes.Say("## collector-one"))
+		Expect(outputWriter).To(gbytes.Say("## collector-two"))
 
 		Expect(collectorOne.RunCallCount()).To(Equal(1))
 		Expect(collectorTwo.RunCallCount()).To(Equal(1))
@@ -90,7 +90,7 @@ var _ = Describe("Reporter", func() {
 
 		It("notifies failure", func() {
 			Expect(runner.Run()).To(Succeed())
-			Expect(outputWriter).To(gbytes.Say("Failure: collector-one-error\n"))
+			Expect(outputWriter).To(gbytes.Say("Failure: collector-one-error"))
 		})
 	})
 
