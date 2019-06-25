@@ -4,6 +4,8 @@
 [ -z "$FLY_TARGET" ] && FLY_TARGET="garden-ci"
 [ -z "$FLY_ARGS" ] && FLY_ARGS="-p"
 
+GRR_ROOT=$HOME/workspace/garden-runc-release
+
 RED=1
 GREEN=2
 print_message() {
@@ -25,7 +27,7 @@ compile_fly_cmd() {
 
   cmd="fly -t $FLY_TARGET"
   cmd=$cmd" e -c $task_path"
-  cmd=$cmd" -i dontpanic-git-repo=${PWD}"
+  cmd=$cmd" -i gr-release-develop=${GRR_ROOT}"
   cmd=$cmd" $FLY_ARGS"
   cmd=$cmd" --"
 
@@ -45,15 +47,16 @@ compile_ginkgo_args() {
 run_unit_tests() {
   echo "Running UNIT tests"
 
-  cmd=$(compile_fly_cmd ci/tasks/unit-tests.yml)
+  cmd=$(compile_fly_cmd $GRR_ROOT/ci/tasks/dontpanic-unit.yml)
   cmd=$cmd" "$(compile_ginkgo_args)
+
   eval $cmd
 }
 
 run_integration_tests() {
   echo "Running INTEGRATION tests"
 
-  cmd=$(compile_fly_cmd ci/tasks/integration-tests.yml)
+  cmd=$(compile_fly_cmd $GRR_ROOT/ci/tasks/dontpanic-integration.yml)
   cmd=$cmd" "$(compile_ginkgo_args integration)
 
   eval $cmd
