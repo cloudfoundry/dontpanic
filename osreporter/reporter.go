@@ -78,7 +78,13 @@ func (r Reporter) Run() error {
 		}
 	}
 
-	return r.createTarball()
+	if err := r.createTarball(); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(r.stdout, aurora.Green(fmt.Sprintf("<Report Complete. Archive Created: %s.tgz>", r.reportPath)).Bold())
+
+	return os.RemoveAll(r.reportPath)
 }
 
 func (r Reporter) createTarball() error {

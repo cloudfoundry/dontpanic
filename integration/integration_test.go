@@ -234,6 +234,9 @@ var _ = Describe("Integration", func() {
 		tarballShouldContainFile("garden/garden.log")
 		tarballShouldContainFile("garden/garden.log.1")
 		tarballShouldContainFile("garden/garden.log.2.gz")
+
+		By("deleting the report dir at the end")
+		Expect(getReportDir()).ToNot(BeADirectory())
 	})
 
 	When("running as a non-root user", func() {
@@ -302,6 +305,19 @@ func getTarball() string {
 		if re.MatchString(info.Name()) {
 			return filepath.Join(baseDir, info.Name())
 		}
+	}
+	return ""
+}
+
+func getReportDir() string {
+	dirEntries, err := ioutil.ReadDir(baseDir)
+	ExpectWithOffset(2, err).NotTo(HaveOccurred())
+
+	for _, info := range dirEntries {
+		if !info.IsDir() {
+			continue
+		}
+		return filepath.Join(baseDir, info.Name())
 	}
 	return ""
 }
