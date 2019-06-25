@@ -18,9 +18,8 @@ import (
 )
 
 const (
-	baseDir      = "/var/vcap/data/tmp"
-	dateRegexp   = `\w{3} \w{3} \d{1,2}.*\d{4}.*`
-	uptimeRegexp = `day.*user.*load average`
+	baseDir    = "/var/vcap/data/tmp"
+	dateRegexp = `\w{3} \w{3} \d{1,2}.*\d{4}.*`
 )
 
 var _ = Describe("Integration", func() {
@@ -96,7 +95,7 @@ var _ = Describe("Integration", func() {
 		By("collecting the uptime")
 		tarballShouldContainFile("uptime.log")
 		Expect(string(tarballFileContents("uptime.log"))).
-			To(MatchRegexp(uptimeRegexp))
+			To(ContainSubstring("load average"))
 
 		By("collecting the garden version")
 		Expect(session).To(gbytes.Say("## Garden Version"))
