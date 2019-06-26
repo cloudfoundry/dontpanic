@@ -11,7 +11,7 @@ It should be run as root and the resulting tar sent to the Garden team: `/var/vc
 
 Those running  GRR < v1.17.1 can download the latest `dontpanic` release and execute it on the host VM as root:
 
-eg: `wget https://github.com/cloudfoundry/dontpanic/releases/download/1.0/dontpanic && chmod +x ./dontpanic && ./dontpanic`.
+eg: `wget https://github.com/cloudfoundry/dontpanic/releases/download/v1.0/dontpanic && chmod +x ./dontpanic && ./dontpanic`.
 
 NB: If you are running the Garden job in rootless mode (ie Garden is running inside a BPM container), you should still execute `dontpanic` as root
 from outside the BPM container. 
