@@ -90,7 +90,7 @@ var _ = Describe("Reporter", func() {
 
 		It("notifies failure", func() {
 			Expect(runner.Run()).To(Succeed())
-			Expect(outputWriter).To(gbytes.Say("Failure: collector-one-error"))
+			Expect(outputWriter).To(gbytes.Say(">> collector-one failed: collector-one-error"))
 		})
 	})
 

@@ -63,8 +63,7 @@ func (r Reporter) Run() error {
 	}
 
 	for _, collector := range r.collectors {
-		fmt.Fprintln(r.stdout, aurora.Cyan("## "+collector.name).Bold())
-		fmt.Fprintln(logFile, "## "+collector.name)
+		r.logHeader(logFile, collector.name)
 
 		out := ioutil.Discard
 		if collector.echoOutput {
@@ -73,8 +72,7 @@ func (r Reporter) Run() error {
 
 		err := collector.Run(r.reportPath, out)
 		if err != nil {
-			fmt.Fprintln(r.stdout, aurora.Red(fmt.Errorf("Failure: %s", err.Error())))
-			fmt.Fprintln(logFile, "Failure: ", err.Error())
+			r.logError(logFile, collector.name, err)
 		}
 	}
 
@@ -85,6 +83,18 @@ func (r Reporter) Run() error {
 	fmt.Fprintln(r.stdout, aurora.Green(fmt.Sprintf("<Report Complete. Archive Created: %s.tgz>", r.reportPath)).Bold())
 
 	return os.RemoveAll(r.reportPath)
+}
+
+func (r Reporter) logHeader(writer io.Writer, value string) {
+	header := "## " + value
+	fmt.Fprintln(r.stdout, aurora.Cyan(header).Bold())
+	fmt.Fprintln(writer, header)
+}
+
+func (r Reporter) logError(writer io.Writer, subject string, err error) {
+	errorMessage := fmt.Sprintf(">> %s failed: %s", subject, err.Error())
+	fmt.Fprintln(r.stdout, aurora.Red(errorMessage))
+	fmt.Fprintln(writer, errorMessage)
 }
 
 func (r Reporter) createTarball() error {
