@@ -19,7 +19,7 @@ import (
 
 const (
 	baseDir    = "/var/vcap/data/tmp"
-	dateRegexp = `\w{3} \w{3} \d{1,2}.*\d{4}.*`
+	dateRegexp = `\w{3} \w{3}  ?\d{1,2}.*\d{4}.*`
 )
 
 var _ = Describe("Integration", func() {
