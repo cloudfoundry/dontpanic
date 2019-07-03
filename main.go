@@ -92,7 +92,7 @@ func createReportDir(baseDir string) string {
 		fmt.Println(aurora.Magenta("could not determine hostname"))
 		hostname = "UNKNOWN-HOSTNAME"
 	}
-	timestamp := time.Now().Format("2006-01-02-15-04-05")
+	timestamp := time.Now().Format("2006-01-02-15-04-05.000000000")
 	reportDir := fmt.Sprintf("os-report-%s-%s", hostname, timestamp)
 	path := filepath.Join(baseDir, reportDir)
 	if err := os.MkdirAll(path, 0755); err != nil {
