@@ -1,8 +1,7 @@
 package integration_test
 
 import (
-	"fmt"
-	"math/rand"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,8 +34,9 @@ var _ = AfterSuite(func() {
 
 func makeBinaryAccessibleToEveryone(binaryPath string) string {
 	binaryName := path.Base(binaryPath)
-	tempDir := fmt.Sprintf("/tmp/temp-%s-%d", binaryName, rand.Int())
-	Expect(os.MkdirAll(tempDir, 0755)).To(Succeed())
+
+	tempDir, err := ioutil.TempDir("", binaryName)
+	Expect(err).NotTo(HaveOccurred())
 	Expect(os.Chmod(tempDir, 0755)).To(Succeed())
 
 	newBinaryPath := filepath.Join(tempDir, binaryName)
