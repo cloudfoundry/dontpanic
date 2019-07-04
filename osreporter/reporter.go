@@ -80,7 +80,7 @@ func (r Reporter) Run() error {
 		return err
 	}
 
-	fmt.Fprintln(r.stdout, aurora.Green(fmt.Sprintf("<Report Complete. Archive Created: %s.tgz>", r.reportPath)).Bold())
+	fmt.Fprintln(r.stdout, aurora.Green(fmt.Sprintf("<Report Complete. Archive Created: %s.tar.gz>", r.reportPath)).Bold())
 
 	return os.RemoveAll(r.reportPath)
 }
