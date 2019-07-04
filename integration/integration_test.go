@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,48 +23,12 @@ const (
 
 var _ = Describe("Integration", func() {
 	var (
-		session         *gexec.Session
-		cmd             *exec.Cmd
-		gardenConfigDir = "/var/vcap/jobs/garden/config"
-		gardenLogDir    = "/var/vcap/sys/log/garden"
-		varLogDir       = "/var/log"
-		gardenDepotDir  = "/var/vcap/data/garden/depot"
-		monitDir        = "/var/vcap/monit"
+		session *gexec.Session
+		cmd     *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		Expect(os.MkdirAll(gardenConfigDir, 0755)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "config.ini"), []byte("hi"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "privileged_grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "bpm.yml"), []byte("bpm"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenConfigDir, "containerd.toml"), []byte("nerd"), 0644)).To(Succeed())
-
-		Expect(os.MkdirAll(gardenLogDir, 0755)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenLogDir, "garden.log"), []byte("cur"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenLogDir, "garden.log.1"), []byte("prev"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(gardenLogDir, "garden.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
-
-		Expect(os.MkdirAll(varLogDir, 0755)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "kern.log"), []byte("cur"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "kern.log.1"), []byte("prev"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "kern.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
-
-		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "syslog"), []byte("cur"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "syslog.1"), []byte("prev"), 0644)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(varLogDir, "syslog.2.gz"), []byte("Z"), 0644)).To(Succeed())
-
-		Expect(os.MkdirAll(monitDir, 0755)).To(Succeed())
-		Expect(ioutil.WriteFile(filepath.Join(monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())
-
-		Expect(os.MkdirAll(filepath.Join(gardenDepotDir, "container1"), 0755)).To(Succeed())
-
 		cmd = exec.Command(dontPanicBin)
-	})
-
-	AfterEach(func() {
-		Expect(os.RemoveAll(gardenConfigDir)).To(Succeed())
-		Expect(os.RemoveAll(gardenLogDir)).To(Succeed())
 	})
 
 	JustBeforeEach(func() {
@@ -76,6 +39,9 @@ var _ = Describe("Integration", func() {
 	})
 
 	It("produces a report correctly", func() {
+		reportDir := getReportDir(session.Out.Contents())
+		tarPath := reportDir + ".tar.gz"
+
 		By("succeeding")
 		Expect(session.ExitCode()).To(Equal(0))
 
@@ -83,91 +49,91 @@ var _ = Describe("Integration", func() {
 		Expect(session).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
 
 		By("writing a logfile containing all steps")
-		tarballShouldContainFile("dontpanic.log")
-		Expect(string(tarballFileContents("dontpanic.log"))).
+		tarballShouldContainFile(tarPath, "dontpanic.log")
+		Expect(string(tarballFileContents(tarPath, "dontpanic.log"))).
 			To(ContainSubstring("## Date"))
 
 		By("collecting the date")
-		tarballShouldContainFile("date.log")
-		Expect(string(tarballFileContents("date.log"))).
+		tarballShouldContainFile(tarPath, "date.log")
+		Expect(string(tarballFileContents(tarPath, "date.log"))).
 			To(MatchRegexp(dateRegexp))
 
 		By("collecting the uptime")
-		tarballShouldContainFile("uptime.log")
-		Expect(string(tarballFileContents("uptime.log"))).
+		tarballShouldContainFile(tarPath, "uptime.log")
+		Expect(string(tarballFileContents(tarPath, "uptime.log"))).
 			To(ContainSubstring("load average"))
 
 		By("collecting the garden version")
 		Expect(session).To(gbytes.Say("## Garden Version"))
 
 		By("collecting the hostname")
-		tarballShouldContainFile("hostname.log")
+		tarballShouldContainFile(tarPath, "hostname.log")
 
 		By("collecting the free memory")
-		tarballShouldContainFile("free.log")
-		Expect(string(tarballFileContents("free.log"))).
+		tarballShouldContainFile(tarPath, "free.log")
+		Expect(string(tarballFileContents(tarPath, "free.log"))).
 			To(ContainSubstring("Mem:"))
 
 		By("collecting the kernel details")
-		tarballShouldContainFile("uname.log")
-		Expect(string(tarballFileContents("uname.log"))).
+		tarballShouldContainFile(tarPath, "uname.log")
+		Expect(string(tarballFileContents(tarPath, "uname.log"))).
 			To(ContainSubstring("Linux"))
 
 		By("collecting monit summary")
 		Expect(session).To(gbytes.Say("## Monit Summary"))
 
 		By("collecting the number of containers")
-		tarballShouldContainFile("num-containers.log")
-		Expect(string(tarballFileContents("num-containers.log"))).
+		tarballShouldContainFile(tarPath, "num-containers.log")
+		Expect(string(tarballFileContents(tarPath, "num-containers.log"))).
 			To(ContainSubstring("1"))
 
 		By("collecting the number of open files")
-		tarballShouldContainFile("num-open-files.log")
-		Expect(tarballFileContents("num-open-files.log")).ToNot(BeEmpty())
+		tarballShouldContainFile(tarPath, "num-open-files.log")
+		Expect(tarballFileContents(tarPath, "num-open-files.log")).ToNot(BeEmpty())
 
 		By("collecting the max number of open files")
-		tarballShouldContainFile("file-max.log")
-		Expect(tarballFileContents("file-max.log")).ToNot(BeEmpty())
+		tarballShouldContainFile(tarPath, "file-max.log")
+		Expect(tarballFileContents(tarPath, "file-max.log")).ToNot(BeEmpty())
 
 		By("collecting the disk usage")
-		tarballShouldContainFile("df.log")
-		Expect(tarballFileContents("df.log")).To(ContainSubstring("Filesystem"))
+		tarballShouldContainFile(tarPath, "df.log")
+		Expect(tarballFileContents(tarPath, "df.log")).To(ContainSubstring("Filesystem"))
 
 		By("collecting the open files")
-		tarballShouldContainFile("lsof.log")
-		Expect(tarballFileContents("lsof.log")).To(ContainSubstring("COMMAND"))
+		tarballShouldContainFile(tarPath, "lsof.log")
+		Expect(tarballFileContents(tarPath, "lsof.log")).To(ContainSubstring("COMMAND"))
 
 		By("collecting the process information")
-		tarballShouldContainFile("ps-info.log")
-		Expect(tarballFileContents("ps-info.log")).To(ContainSubstring("PID"))
+		tarballShouldContainFile(tarPath, "ps-info.log")
+		Expect(tarballFileContents(tarPath, "ps-info.log")).To(ContainSubstring("PID"))
 
 		By("collecting the process forest information")
-		tarballShouldContainFile("ps-forest.log")
-		Expect(tarballFileContents("ps-forest.log")).To(ContainSubstring("USER"))
+		tarballShouldContainFile(tarPath, "ps-forest.log")
+		Expect(tarballFileContents(tarPath, "ps-forest.log")).To(ContainSubstring("USER"))
 
 		By("collecting the dmesg")
-		tarballShouldContainFile("dmesg.log")
-		Expect(tarballFileContents("dmesg.log")).
+		tarballShouldContainFile(tarPath, "dmesg.log")
+		Expect(tarballFileContents(tarPath, "dmesg.log")).
 			To(MatchRegexp(dateRegexp))
 
 		By("collecting the network interfaces")
-		tarballShouldContainFile("ifconfig.log")
-		Expect(tarballFileContents("ifconfig.log")).To(ContainSubstring("Link"))
+		tarballShouldContainFile(tarPath, "ifconfig.log")
+		Expect(tarballFileContents(tarPath, "ifconfig.log")).To(ContainSubstring("Link"))
 
 		By("collecting the firewall configuration")
-		tarballShouldContainFile("iptables-L.log")
-		Expect(tarballFileContents("iptables-L.log")).To(ContainSubstring("Chain"))
+		tarballShouldContainFile(tarPath, "iptables-L.log")
+		Expect(tarballFileContents(tarPath, "iptables-L.log")).To(ContainSubstring("Chain"))
 
 		By("collecting the NAT info")
-		tarballShouldContainFile("iptables-tnat.log")
-		Expect(tarballFileContents("iptables-tnat.log")).To(ContainSubstring("Chain"))
+		tarballShouldContainFile(tarPath, "iptables-tnat.log")
+		Expect(tarballFileContents(tarPath, "iptables-tnat.log")).To(ContainSubstring("Chain"))
 
 		By("collecting the mount table")
 		Expect(session).To(gbytes.Say("## Mount Table"))
 
 		By("collecting Garden depot contents")
-		tarballShouldContainFile("depot-contents.log")
-		Expect(tarballFileContents("depot-contents.log")).To(ContainSubstring("depot"))
+		tarballShouldContainFile(tarPath, "depot-contents.log")
+		Expect(tarballFileContents(tarPath, "depot-contents.log")).To(ContainSubstring("depot"))
 
 		By("collecting XFS fragmentation info")
 		Expect(session).To(gbytes.Say("## XFS Fragmentation"))
@@ -176,66 +142,66 @@ var _ = Describe("Integration", func() {
 		Expect(session).To(gbytes.Say("## XFS Info"))
 
 		By("collecting Slabinfo")
-		tarballShouldContainFile("slabinfo.log")
-		Expect(tarballFileContents("slabinfo.log")).To(ContainSubstring("active_objs"))
+		tarballShouldContainFile(tarPath, "slabinfo.log")
+		Expect(tarballFileContents(tarPath, "slabinfo.log")).To(ContainSubstring("active_objs"))
 
 		By("collecting Meminfo")
-		tarballShouldContainFile("meminfo.log")
-		Expect(tarballFileContents("meminfo.log")).To(ContainSubstring("MemTotal"))
+		tarballShouldContainFile(tarPath, "meminfo.log")
+		Expect(tarballFileContents(tarPath, "meminfo.log")).To(ContainSubstring("MemTotal"))
 
 		By("collecting iostat")
-		tarballShouldContainFile("iostat.log")
-		Expect(tarballFileContents("iostat.log")).To(ContainSubstring("Linux"))
+		tarballShouldContainFile(tarPath, "iostat.log")
+		Expect(tarballFileContents(tarPath, "iostat.log")).To(ContainSubstring("Linux"))
 
 		By("collecting vm statistics")
-		tarballShouldContainFile("vmstat-s.log")
-		Expect(tarballFileContents("vmstat-s.log")).To(ContainSubstring("memory"))
+		tarballShouldContainFile(tarPath, "vmstat-s.log")
+		Expect(tarballFileContents(tarPath, "vmstat-s.log")).To(ContainSubstring("memory"))
 
 		By("collecting disk statistics")
-		tarballShouldContainFile("vmstat-d.log")
-		Expect(tarballFileContents("vmstat-d.log")).To(ContainSubstring("disk"))
+		tarballShouldContainFile(tarPath, "vmstat-d.log")
+		Expect(tarballFileContents(tarPath, "vmstat-d.log")).To(ContainSubstring("disk"))
 
 		By("collecting active and inactive memory statistics")
-		tarballShouldContainFile("vmstat-a.log")
-		Expect(tarballFileContents("vmstat-a.log")).To(ContainSubstring("memory"))
+		tarballShouldContainFile(tarPath, "vmstat-a.log")
+		Expect(tarballFileContents(tarPath, "vmstat-a.log")).To(ContainSubstring("memory"))
 
 		By("collecting mass process data")
 		currentPid := os.Getpid()
-		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "fd"))
-		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "ns"))
-		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "cgroup"))
-		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "stack"))
-		tarballShouldContainFile(filepath.Join("process-data", strconv.Itoa(currentPid), "status"))
+		tarballShouldContainFile(tarPath, filepath.Join("process-data", strconv.Itoa(currentPid), "fd"))
+		tarballShouldContainFile(tarPath, filepath.Join("process-data", strconv.Itoa(currentPid), "ns"))
+		tarballShouldContainFile(tarPath, filepath.Join("process-data", strconv.Itoa(currentPid), "cgroup"))
+		tarballShouldContainFile(tarPath, filepath.Join("process-data", strconv.Itoa(currentPid), "stack"))
+		tarballShouldContainFile(tarPath, filepath.Join("process-data", strconv.Itoa(currentPid), "status"))
 
 		By("collecting the kernel logs")
-		tarballShouldContainFile("kernel-logs/kern.log")
-		tarballShouldContainFile("kernel-logs/kern.log.1")
-		tarballShouldContainFile("kernel-logs/kern.log.2.gz")
+		tarballShouldContainFile(tarPath, "kernel-logs/kern.log")
+		tarballShouldContainFile(tarPath, "kernel-logs/kern.log.1")
+		tarballShouldContainFile(tarPath, "kernel-logs/kern.log.2.gz")
 
 		By("collecting monit log")
-		tarballShouldContainFile("monit.log")
-		Expect(tarballFileContents("monit.log")).To(ContainSubstring("monit"))
+		tarballShouldContainFile(tarPath, "monit.log")
+		Expect(tarballFileContents(tarPath, "monit.log")).To(ContainSubstring("monit"))
 
 		By("collecting the syslogs")
-		tarballShouldContainFile("syslogs/syslog")
-		tarballShouldContainFile("syslogs/syslog.1")
-		tarballShouldContainFile("syslogs/syslog.2.gz")
+		tarballShouldContainFile(tarPath, "syslogs/syslog")
+		tarballShouldContainFile(tarPath, "syslogs/syslog.1")
+		tarballShouldContainFile(tarPath, "syslogs/syslog.2.gz")
 
 		By("collecting all garden config")
-		tarballShouldContainFile("config/config.ini")
-		Expect(string(tarballFileContents("config/config.ini"))).To(Equal("hi"))
-		tarballShouldContainFile("config/grootfs_config.yml")
-		tarballShouldContainFile("config/privileged_grootfs_config.yml")
-		tarballShouldContainFile("config/bpm.yml")
-		tarballShouldContainFile("config/containerd.toml")
+		tarballShouldContainFile(tarPath, "config/config.ini")
+		Expect(string(tarballFileContents(tarPath, "config/config.ini"))).To(Equal("hi"))
+		tarballShouldContainFile(tarPath, "config/grootfs_config.yml")
+		tarballShouldContainFile(tarPath, "config/privileged_grootfs_config.yml")
+		tarballShouldContainFile(tarPath, "config/bpm.yml")
+		tarballShouldContainFile(tarPath, "config/containerd.toml")
 
 		By("collecting the garden logs")
-		tarballShouldContainFile("garden/garden.log")
-		tarballShouldContainFile("garden/garden.log.1")
-		tarballShouldContainFile("garden/garden.log.2.gz")
+		tarballShouldContainFile(tarPath, "garden/garden.log")
+		tarballShouldContainFile(tarPath, "garden/garden.log.1")
+		tarballShouldContainFile(tarPath, "garden/garden.log.2.gz")
 
 		By("deleting the report dir at the end")
-		Expect(getReportDir()).ToNot(BeADirectory())
+		Expect(reportDir).ToNot(BeADirectory())
 	})
 
 	When("running as a non-root user", func() {
@@ -270,55 +236,24 @@ var _ = Describe("Integration", func() {
 	})
 })
 
-func tarballShouldContainFile(filePath string) {
-	tarball := getTarball()
-	ExpectWithOffset(1, tarball).ToNot(BeEmpty(), "tarball not found in "+baseDir)
+func tarballShouldContainFile(tarballPath, filePath string) {
+	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found in "+baseDir)
 
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
+	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
 	logFilePath := filepath.Join(extractedOsReportPath, filePath)
-	ExpectWithOffset(1, listTarball(tarball)).To(ContainSubstring(logFilePath))
+	ExpectWithOffset(1, listTarball(tarballPath)).To(ContainSubstring(logFilePath))
 }
 
-func tarballFileContents(filePath string) []byte {
-	tarball := getTarball()
-	ExpectWithOffset(1, tarball).ToNot(BeEmpty(), "tarball not found in "+baseDir)
+func tarballFileContents(tarballPath, filePath string) []byte {
+	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found in "+baseDir)
 
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarball), ".tar.gz")
+	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
 	osDir := filepath.Base(extractedOsReportPath)
 
-	cmd := exec.Command("tar", "xf", tarball, filepath.Join(osDir, filePath), "-O")
+	cmd := exec.Command("tar", "xf", tarballPath, filepath.Join(osDir, filePath), "-O")
 	out, err := cmd.Output()
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 	return out
-}
-
-func getTarball() string {
-	dirEntries, err := ioutil.ReadDir(baseDir)
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
-	re := regexp.MustCompile(`os-report-.*\.tar\.gz`)
-	for _, info := range dirEntries {
-		if info.IsDir() {
-			continue
-		}
-		if re.MatchString(info.Name()) {
-			return filepath.Join(baseDir, info.Name())
-		}
-	}
-	return ""
-}
-
-func getReportDir() string {
-	dirEntries, err := ioutil.ReadDir(baseDir)
-	ExpectWithOffset(2, err).NotTo(HaveOccurred())
-
-	for _, info := range dirEntries {
-		if !info.IsDir() {
-			continue
-		}
-		return filepath.Join(baseDir, info.Name())
-	}
-	return ""
 }
 
 func listTarball(tarball string) string {
@@ -326,4 +261,11 @@ func listTarball(tarball string) string {
 	files, err := cmd.Output()
 	ExpectWithOffset(2, err).NotTo(HaveOccurred())
 	return string(files)
+}
+
+func getReportDir(output []byte) string {
+	re := regexp.MustCompile(`(\/.*os-report-.*)\.tar\.gz`)
+	matches := re.FindStringSubmatch(string(output))
+	Expect(matches).To(HaveLen(2))
+	return matches[1]
 }
