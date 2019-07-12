@@ -14,11 +14,21 @@ import (
 	"code.cloudfoundry.org/dontpanic/collectors/file"
 	"code.cloudfoundry.org/dontpanic/collectors/process"
 	"code.cloudfoundry.org/dontpanic/osreporter"
+	"github.com/jessevdk/go-flags"
 )
+
+type Server struct {
+	LogLevel string `long:"log-level" default:"info"`
+}
+
+type Config struct {
+	Server Server `command:"server"`
+}
 
 func main() {
 	checkIsRoot()
 	checkIsNotBpm()
+	checkGardenLogLevel()
 	reportDir := createReportDir("/var/vcap/data/tmp")
 
 	osReporter := osreporter.New(reportDir, os.Stdout)
@@ -83,6 +93,23 @@ func checkIsNotBpm() {
 	if bytes.Contains(contents, []byte("garden_start")) {
 		fmt.Fprintln(os.Stderr, aurora.Red("Keep Calm and Re-run outside the BPM container!").Bold())
 		os.Exit(1)
+	}
+}
+
+func checkGardenLogLevel() {
+	config := Config{Server: Server{}}
+	if err := flags.IniParse("/var/vcap/jobs/garden/config/config.ini", &config); err != nil {
+		return
+	}
+
+	if config.Server.LogLevel == "error" || config.Server.LogLevel == "fatal" {
+		fmt.Fprintln(
+			os.Stderr, aurora.Yellow(
+				"WARNING: Garden log level is set to "+
+					config.Server.LogLevel+
+					". This usually makes problem diagnosis quite hard. "+
+					"Please consider using a log level of 'debug' or 'info' in the future!",
+			).Bold())
 	}
 }
 

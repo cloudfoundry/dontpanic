@@ -26,7 +26,7 @@ func NewCollector(destinationPath string) Collector {
 }
 
 func (c Collector) Run(ctx context.Context, reportDir string, stdout io.Writer) error {
-	procs, err := c.runner.Run(ctx, "sh", "-c", "ps -eLo tid | awk 'NR>1'")
+	procs, err := c.runner.Run(ctx, "sh", "-c", "ps -eLo tid | tail -n +2")
 	if err != nil {
 		return err
 	}

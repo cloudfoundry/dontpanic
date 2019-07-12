@@ -1,6 +1,8 @@
 package integration_test
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -17,18 +21,39 @@ import (
 )
 
 const (
-	baseDir    = "/var/vcap/data/tmp"
-	dateRegexp = `\w{3} \w{3}  ?\d{1,2}.*\d{4}.*`
+	gardenConfigDir = "/var/vcap/jobs/garden/config"
+	gardenLogDir    = "/var/vcap/sys/log/garden"
+	varLogDir       = "/var/log"
+	gardenDepotDir  = "/var/vcap/data/garden/depot"
+	monitDir        = "/var/vcap/monit"
+	dateRegexp      = `\w{3} \w{3}  ?\d{1,2}.*\d{4}.*`
+	iniFileTemplate = `
+[server]
+  log-level = %s`
 )
 
 var _ = Describe("Integration", func() {
 	var (
-		session *gexec.Session
-		cmd     *exec.Cmd
+		bindMounts []string = []string{"/proc", "/sys", "/dev", "/bin", "/usr/bin", "/sbin", "/usr/sbin", "/lib", "/lib64"}
+		sandboxDir string
+		session    *gexec.Session
+		cmd        *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		cmd = exec.Command(dontPanicBin)
+		var err error
+		sandboxDir, err = ioutil.TempDir("", "dontpanic-sandbox")
+		Expect(err).NotTo(HaveOccurred())
+		createTestResources(sandboxDir)
+		mountAll(sandboxDir, bindMounts)
+
+		cmd = exec.Command("chroot", sandboxDir, "./dontpanic")
+	})
+
+	AfterEach(func() {
+		unmountAll(sandboxDir, bindMounts)
+		Expect(os.RemoveAll(gardenConfigDir)).To(Succeed())
+		Expect(os.RemoveAll(gardenLogDir)).To(Succeed())
 	})
 
 	JustBeforeEach(func() {
@@ -39,11 +64,14 @@ var _ = Describe("Integration", func() {
 	})
 
 	It("produces a report correctly", func() {
-		reportDir := getReportDir(session.Out.Contents())
+		reportDir := filepath.Join(sandboxDir, getReportDir(session.Out.Contents()))
 		tarPath := reportDir + ".tar.gz"
 
 		By("succeeding")
 		Expect(session.ExitCode()).To(Equal(0))
+
+		By("not showing the debug level warning message")
+		Expect(session).NotTo(gbytes.Say("WARNING: Garden log level is set to error. This usually makes problem diagnosis quite hard."))
 
 		By("showing an initial message")
 		Expect(session).To(gbytes.Say("<Useful information below, please copy-paste from here>"))
@@ -189,7 +217,7 @@ var _ = Describe("Integration", func() {
 
 		By("collecting all garden config")
 		tarballShouldContainFile(tarPath, "config/config.ini")
-		Expect(string(tarballFileContents(tarPath, "config/config.ini"))).To(Equal("hi"))
+		Expect(string(tarballFileContents(tarPath, "config/config.ini"))).To(ContainSubstring("debug"))
 		tarballShouldContainFile(tarPath, "config/grootfs_config.yml")
 		tarballShouldContainFile(tarPath, "config/privileged_grootfs_config.yml")
 		tarballShouldContainFile(tarPath, "config/bpm.yml")
@@ -206,6 +234,8 @@ var _ = Describe("Integration", func() {
 
 	When("running as a non-root user", func() {
 		BeforeEach(func() {
+			// we are not allowed to chroot when rootless, so exec out of sandbox
+			cmd = exec.Command(dontPanicBin)
 			cmd.SysProcAttr = &syscall.SysProcAttr{
 				Credential: &syscall.Credential{Uid: 5000, Gid: 5000},
 			}
@@ -217,27 +247,45 @@ var _ = Describe("Integration", func() {
 		})
 	})
 
+	When("the garden log level is set to error", func() {
+		BeforeEach(func() {
+			newConfig := []byte(fmt.Sprintf(iniFileTemplate, "error"))
+			Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), newConfig, 0644)).To(Succeed())
+		})
+
+		It("warns and continues", func() {
+			Expect(session.ExitCode()).To(Equal(0))
+			Expect(session.Err).To(gbytes.Say("WARNING: Garden log level is set to error. This usually makes problem diagnosis quite hard."))
+		})
+	})
+
+	When("the garden log level is set to fatal", func() {
+		BeforeEach(func() {
+			newConfig := []byte(fmt.Sprintf(iniFileTemplate, "fatal"))
+			Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), newConfig, 0644)).To(Succeed())
+		})
+
+		It("warns and continues", func() {
+			Expect(session.ExitCode()).To(Equal(0))
+			Expect(session.Err).To(gbytes.Say("WARNING: Garden log level is set to fatal. This usually makes problem diagnosis quite hard."))
+		})
+	})
+
 	When("running in BPM", func() {
-		It("fails", func() {
-			Skip("return to this")
-			// wd, err := os.Getwd()
-			// Expect(err).NotTo(HaveOccurred())
-			// Expect(os.Symlink(dontPanicBin, wd+"/assets/rootfs/bin/dontPanicBin")).To(Succeed())
-			//
-			// runcRun := exec.Command("runc", "run", "assets/config.json", "fake-bpm-container")
-			// _, err = gexec.Start(runcRun, GinkgoWriter, GinkgoWriter)
-			// Expect(err).NotTo(HaveOccurred())
-			//
-			// runcExec := exec.Command("runc", "exec", "fake-bpm-container", "/bin/dontPanicBin")
-			// sess, err := gexec.Start(runcExec, GinkgoWriter, GinkgoWriter)
-			// Expect(err).NotTo(HaveOccurred())
-			// Eventually(sess).Should(gexec.Exit(1))
+		BeforeEach(func() {
+			// unmount proc (that's how dontpanic determines if it is inside bpm)
+			Expect(unix.Unmount(filepath.Join(sandboxDir, "proc"), 0)).To(Succeed())
+		})
+
+		It("warns and exits", func() {
+			Expect(session.ExitCode()).ToNot(Equal(0))
+			Expect(session.Err).To(gbytes.Say("Cannot determine if running in bpm: cannot read cmdline"))
 		})
 	})
 })
 
 func tarballShouldContainFile(tarballPath, filePath string) {
-	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found in "+baseDir)
+	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found: "+tarballPath)
 
 	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
 	logFilePath := filepath.Join(extractedOsReportPath, filePath)
@@ -245,7 +293,7 @@ func tarballShouldContainFile(tarballPath, filePath string) {
 }
 
 func tarballFileContents(tarballPath, filePath string) []byte {
-	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found in "+baseDir)
+	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found: "+tarballPath)
 
 	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
 	osDir := filepath.Base(extractedOsReportPath)
@@ -268,4 +316,55 @@ func getReportDir(output []byte) string {
 	matches := re.FindStringSubmatch(string(output))
 	Expect(matches).To(HaveLen(2))
 	return matches[1]
+}
+
+func mountAll(rootDir string, dirs []string) {
+	for _, dir := range dirs {
+		mountPoint := filepath.Join(rootDir, dir)
+		Expect(os.MkdirAll(mountPoint, 0755)).To(Succeed())
+		Expect(unix.Mount(dir, mountPoint, "", unix.MS_BIND, "")).To(Succeed())
+	}
+}
+func unmountAll(rootDir string, dirs []string) {
+	for _, dir := range dirs {
+		unmount(filepath.Join(rootDir, dir))
+	}
+}
+
+func unmount(mountPoint string) {
+	err := unix.Unmount(mountPoint, 0)
+	if err == unix.EINVAL {
+		return
+	}
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func createTestResources(sandboxDir string) {
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenConfigDir), 0755)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), []byte(fmt.Sprintf(iniFileTemplate, "debug")), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "privileged_grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "bpm.yml"), []byte("bpm"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "containerd.toml"), []byte("nerd"), 0644)).To(Succeed())
+
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenLogDir), 0755)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log"), []byte("cur"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log.1"), []byte("prev"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, varLogDir), 0755)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log"), []byte("cur"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log.1"), []byte("prev"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog"), []byte("cur"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.1"), []byte("prev"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, monitDir), 0755)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())
+
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenDepotDir, "container1"), 0755)).To(Succeed())
+
+	Expect(exec.Command("cp", dontPanicBin, filepath.Join(sandboxDir, "dontpanic")).Run()).To(Succeed())
 }
