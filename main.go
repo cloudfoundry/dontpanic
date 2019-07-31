@@ -14,7 +14,7 @@ import (
 	"code.cloudfoundry.org/dontpanic/collectors/file"
 	"code.cloudfoundry.org/dontpanic/collectors/process"
 	"code.cloudfoundry.org/dontpanic/osreporter"
-	"github.com/jessevdk/go-flags"
+	flags "github.com/jessevdk/go-flags"
 )
 
 type Server struct {
