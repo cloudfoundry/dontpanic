@@ -132,8 +132,7 @@ var _ = Describe("Integration", func() {
 		Expect(tarballFileContents(tarPath, "lsof.log")).To(ContainSubstring("COMMAND"))
 
 		By("collecting the inodes")
-		tarballShouldContainFile(tarPath, "inodes.log")
-		Expect(tarballFileContents(tarPath, "inodes.log")).NotTo(BeEmpty())
+		Expect(session).To(gbytes.Say("## Map of Inodes to Paths"))
 
 		By("collecting the process information")
 		tarballShouldContainFile(tarPath, "ps-info.log")
