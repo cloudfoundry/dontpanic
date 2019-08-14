@@ -46,7 +46,7 @@ func main() {
 
 	osReporter.RegisterCollector("Disk Usage", command.NewCollector("df -h", "df.log"))
 	osReporter.RegisterCollector("List of Open Files", command.NewCollector("lsof", "lsof.log"))
-	osReporter.RegisterCollector("Map of Inodes to Paths", command.NewCollector(`find /var/vcap/data/grootfs/store/unprivileged -printf "%i\t%p\n"`, "inodes.log"))
+	osReporter.RegisterCollector("Map of Inodes to Paths", command.NewCollector(`find / -fprintf inodes '%i %p\n'; lsof -Fi | grep '^i' | cut -c2- | sort | uniq | xargs -i grep -w ^{} inodes; rm inodes`, "inodes.log"), time.Second*20)
 	osReporter.RegisterCollector("Process Information", command.NewCollector("ps -eLo pid,tid,ppid,user:11,comm,state,wchan:35,lstart", "ps-info.log"))
 	osReporter.RegisterCollector("Process Tree", command.NewCollector("ps aux --forest", "ps-forest.log"))
 	osReporter.RegisterCollector("Kernel Messages", command.NewCollector("dmesg -T", "dmesg.log"))
