@@ -58,6 +58,7 @@ var _ = Describe("Reporter", func() {
 		Expect(runner.Run()).To(Succeed())
 		Expect(reportDir + ".tar.gz").To(BeAnExistingFile())
 		Expect(tarballFileContents(reportDir+".tar.gz", "hello")).To(Equal([]byte("hello")))
+		Expect(fileType(reportDir + ".tar.gz")).To(ContainSubstring("gzip"))
 	})
 
 	It("runs all collectors in sequence", func() {
@@ -110,9 +111,16 @@ func tarballFileContents(tarballPath, filePath string) []byte {
 	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
 	osDir := filepath.Base(extractedOsReportPath)
 
-	cmd := exec.Command("tar", "xf", tarballPath, filepath.Join(osDir, filePath), "-O")
+	cmd := exec.Command("tar", "xzf", tarballPath, filepath.Join(osDir, filePath), "-O")
 	out, err := cmd.Output()
 	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	return out
+}
+
+func fileType(path string) string {
+	cmd := exec.Command("file", path)
+	out, err := cmd.Output()
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	return string(out)
 }

@@ -98,7 +98,7 @@ func (r Reporter) logError(writer io.Writer, subject string, err error) {
 }
 
 func (r Reporter) createTarball() error {
-	return exec.Command("tar", "cf", r.reportPath+".tar.gz", "-C", filepath.Dir(r.reportPath), filepath.Base(r.reportPath)).Run()
+	return exec.Command("tar", "czf", r.reportPath+".tar.gz", "-C", filepath.Dir(r.reportPath), filepath.Base(r.reportPath)).Run()
 }
 
 type RegisteredCollector struct {
