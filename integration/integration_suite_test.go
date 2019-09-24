@@ -22,7 +22,7 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	bin, err := gexec.Build("code.cloudfoundry.org/dontpanic")
+	bin, err := gexec.Build("code.cloudfoundry.org/dontpanic", "-mod=vendor")
 	Expect(err).NotTo(HaveOccurred())
 	dontPanicBin = makeBinaryAccessibleToEveryone(bin)
 })
