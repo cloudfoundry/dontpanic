@@ -71,6 +71,12 @@ func main() {
 	osReporter.RegisterCollector("Garden Config", file.NewDirCollector("/var/vcap/jobs/garden/config", ""))
 	osReporter.RegisterCollector("Garden Logs", file.NewDirCollector("/var/vcap/sys/log/garden", ""))
 
+	if isContainerd() {
+		osReporter.RegisterCollector("Containerd init containers", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden containers ls 'labels."container-type"==garden-init'`, "containerd/init-containers"))
+		osReporter.RegisterCollector("Containerd pea containers", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden containers ls 'labels."container-type"==pea'`, "containerd/pea-containers"))
+		osReporter.RegisterCollector("Containerd tasks", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden tasks ls`, "containerd/tasks"))
+	}
+
 	if err := osReporter.Run(); err != nil {
 		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
@@ -112,6 +118,11 @@ func checkGardenLogLevel() {
 					"Please consider using a log level of 'debug' or 'info' in the future!",
 			).Bold())
 	}
+}
+
+func isContainerd() bool {
+	_, err := os.Stat("/var/vcap/sys/run/containerd/containerd.sock")
+	return !os.IsNotExist(err)
 }
 
 func createReportDir(baseDir string) string {

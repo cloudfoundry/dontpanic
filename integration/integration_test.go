@@ -21,13 +21,14 @@ import (
 )
 
 const (
-	gardenConfigDir = "/var/vcap/jobs/garden/config"
-	gardenLogDir    = "/var/vcap/sys/log/garden"
-	varLogDir       = "/var/log"
-	gardenDepotDir  = "/var/vcap/data/garden/depot"
-	monitDir        = "/var/vcap/monit"
-	dateRegexp      = `\w{3} \w{3}  ?\d{1,2}.*\d{4}.*`
-	iniFileTemplate = `
+	gardenConfigDir      = "/var/vcap/jobs/garden/config"
+	gardenLogDir         = "/var/vcap/sys/log/garden"
+	varLogDir            = "/var/log"
+	gardenDepotDir       = "/var/vcap/data/garden/depot"
+	monitDir             = "/var/vcap/monit"
+	containerdSocketPath = "/var/vcap/sys/run/containerd/containerd.sock"
+	dateRegexp           = `\w{3} \w{3}  ?\d{1,2}.*\d{4}.*`
+	iniFileTemplate      = `
 [server]
   log-level = %s`
 )
@@ -233,6 +234,15 @@ var _ = Describe("Integration", func() {
 		tarballShouldContainFile(tarPath, "garden/garden.log.1")
 		tarballShouldContainFile(tarPath, "garden/garden.log.2.gz")
 
+		By("collecting the containerd init containers")
+		Expect(session).To(gbytes.Say("## Containerd init containers"))
+
+		By("collecting the containerd pea containers")
+		Expect(session).To(gbytes.Say("## Containerd pea containers"))
+
+		By("collecting the containerd tasks")
+		Expect(session).To(gbytes.Say("## Containerd tasks"))
+
 		By("deleting the report dir at the end")
 		Expect(reportDir).ToNot(BeADirectory())
 	})
@@ -285,6 +295,23 @@ var _ = Describe("Integration", func() {
 		It("warns and exits", func() {
 			Expect(session.ExitCode()).ToNot(Equal(0))
 			Expect(session.Err).To(gbytes.Say("Cannot determine if running in bpm: cannot read cmdline"))
+		})
+	})
+
+	When("running as non-containerd", func() {
+		BeforeEach(func() {
+			os.RemoveAll(filepath.Join(sandboxDir, containerdSocketPath))
+		})
+
+		It("should not collect containerd specific data", func() {
+			By("collecting the containerd init containers")
+			Expect(session).NotTo(gbytes.Say("## Containerd init containers"))
+
+			By("collecting the containerd pea containers")
+			Expect(session).NotTo(gbytes.Say("## Containerd pea containers"))
+
+			By("collecting the containerd tasks")
+			Expect(session).NotTo(gbytes.Say("## Containerd tasks"))
 		})
 	})
 })
@@ -370,6 +397,9 @@ func createTestResources(sandboxDir string) {
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenDepotDir, "container1"), 0755)).To(Succeed())
+
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, filepath.Dir(containerdSocketPath)), 0755)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, containerdSocketPath), []byte("just-here"), 0644)).To(Succeed())
 
 	Expect(exec.Command("cp", dontPanicBin, filepath.Join(sandboxDir, "dontpanic")).Run()).To(Succeed())
 }
