@@ -47,3 +47,21 @@ from outside the BPM container.
 - General process information
 
 _You can inspect which commands are being run to gather the above by looking at the [code](https://github.com/cloudfoundry/dontpanic/blob/b5ca462b248fba3ff76afcb93b4cb20bf6dfbfce/main.go#L26-L61)_
+
+## How can I use the data in the report?
+
+### Sysstat
+In the sysstat folder you can find multiple files containing system statistics (CPU, Memory, I/O, ...) over time.
+
+In order to make use of this information, you need to do the following:
+```
+export LC_ALL=C
+for file in $(ls sysstat/sa[0-9]*) ; do sar -A -f "$file"  >> sa.data.txt; done
+```
+
+and then use [`ksar`](https://www.cyberciti.biz/tips/identifying-linux-bottlenecks-sar-graphs-with-ksar.html) to turn the result into pdf graphs.
+
+
+There are 2 types of files in `sysstat`: `sa*` and `sar*`. The `sa`s are binaries updated every 10 mins or so. The `sar`s are text files generated once per day. Therefore you probably want to parse the `sa` files as they will be more current.
+
+Note: `ksar` seems to dislike some lines in that file and will complain. What you can do is keep removing the zero lines until it is happy.

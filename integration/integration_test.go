@@ -229,6 +229,9 @@ var _ = Describe("Integration", func() {
 		tarballShouldContainFile(tarPath, "garden/garden.log.1")
 		tarballShouldContainFile(tarPath, "garden/garden.log.2.gz")
 
+		By("collecting systat")
+		tarballShouldContainFile(tarPath, "sysstat/sa17")
+
 		By("collecting the garden containers")
 		Expect(session).To(gbytes.Say("## Garden Containers"))
 
@@ -390,6 +393,9 @@ func createTestResources(sandboxDir string) {
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog"), []byte("cur"), 0644)).To(Succeed())
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.1"), []byte("prev"), 0644)).To(Succeed())
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.2.gz"), []byte("Z"), 0644)).To(Succeed())
+
+	Expect(os.MkdirAll(filepath.Join(sandboxDir, varLogDir, "sysstat"), 0755)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "sysstat", "sa17"), []byte("meh"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, monitDir), 0755)).To(Succeed())
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())

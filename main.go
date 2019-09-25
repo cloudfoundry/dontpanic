@@ -69,6 +69,7 @@ func main() {
 	osReporter.RegisterCollector("Syslog", file.NewCollector("/var/log/syslog*", "syslogs/"))
 	osReporter.RegisterCollector("Garden Config", file.NewDirCollector("/var/vcap/jobs/garden/config", ""))
 	osReporter.RegisterCollector("Garden Logs", file.NewDirCollector("/var/vcap/sys/log/garden", ""))
+	osReporter.RegisterCollector("Sysstat", file.NewDirCollector("/var/log/sysstat", ""))
 
 	osReporter.RegisterCollector("Garden Containers", command.NewCollector("(curl localhost:7777/containers || curl --no-buffer -XGET --unix-socket /var/vcap/data/garden/garden.sock http://localhost/containers) 2> /dev/null", "garden-containers.log"))
 	if isContainerd() {
