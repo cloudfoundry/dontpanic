@@ -111,11 +111,6 @@ var _ = Describe("Integration", func() {
 		By("collecting monit summary")
 		Expect(session).To(gbytes.Say("## Monit Summary"))
 
-		By("collecting the number of containers")
-		tarballShouldContainFile(tarPath, "num-containers.log")
-		Expect(string(tarballFileContents(tarPath, "num-containers.log"))).
-			To(ContainSubstring("1"))
-
 		By("collecting the number of open files")
 		tarballShouldContainFile(tarPath, "num-open-files.log")
 		Expect(tarballFileContents(tarPath, "num-open-files.log")).ToNot(BeEmpty())
@@ -234,14 +229,17 @@ var _ = Describe("Integration", func() {
 		tarballShouldContainFile(tarPath, "garden/garden.log.1")
 		tarballShouldContainFile(tarPath, "garden/garden.log.2.gz")
 
+		By("collecting the garden containers")
+		Expect(session).To(gbytes.Say("## Garden Containers"))
+
 		By("collecting the containerd init containers")
-		Expect(session).To(gbytes.Say("## Containerd init containers"))
+		Expect(session).To(gbytes.Say("## Containerd Init Containers"))
 
 		By("collecting the containerd pea containers")
-		Expect(session).To(gbytes.Say("## Containerd pea containers"))
+		Expect(session).To(gbytes.Say("## Containerd Pea Containers"))
 
 		By("collecting the containerd tasks")
-		Expect(session).To(gbytes.Say("## Containerd tasks"))
+		Expect(session).To(gbytes.Say("## Containerd Tasks"))
 
 		By("deleting the report dir at the end")
 		Expect(reportDir).ToNot(BeADirectory())

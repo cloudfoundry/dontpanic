@@ -40,7 +40,6 @@ func main() {
 	osReporter.RegisterNoisyCollector("Memory Usage", command.NewCollector("free -mt", "free.log"))
 	osReporter.RegisterNoisyCollector("Kernel Details", command.NewCollector("uname -a", "uname.log"))
 	osReporter.RegisterNoisyCollector("Monit Summary", command.NewCollector("/var/vcap/bosh/bin/monit summary", "monit-summary.log"))
-	osReporter.RegisterNoisyCollector("Number of Containers", command.NewCollector("ls /var/vcap/data/garden/depot/ | wc -w", "num-containers.log"))
 	osReporter.RegisterNoisyCollector("Number of Open Files", command.NewCollector("lsof 2>/dev/null | wc -l", "num-open-files.log"))
 	osReporter.RegisterNoisyCollector("Max Number of Open Files", command.NewCollector("cat /proc/sys/fs/file-max", "file-max.log"))
 
@@ -71,10 +70,11 @@ func main() {
 	osReporter.RegisterCollector("Garden Config", file.NewDirCollector("/var/vcap/jobs/garden/config", ""))
 	osReporter.RegisterCollector("Garden Logs", file.NewDirCollector("/var/vcap/sys/log/garden", ""))
 
+	osReporter.RegisterCollector("Garden Containers", command.NewCollector("(curl localhost:7777/containers || curl --no-buffer -XGET --unix-socket /var/vcap/data/garden/garden.sock http://localhost/containers) 2> /dev/null", "garden-containers.log"))
 	if isContainerd() {
-		osReporter.RegisterCollector("Containerd init containers", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden containers ls 'labels."container-type"==garden-init'`, "containerd/init-containers"))
-		osReporter.RegisterCollector("Containerd pea containers", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden containers ls 'labels."container-type"==pea'`, "containerd/pea-containers"))
-		osReporter.RegisterCollector("Containerd tasks", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden tasks ls`, "containerd/tasks"))
+		osReporter.RegisterCollector("Containerd Init Containers", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden containers ls 'labels."container-type"==garden-init'`, "containerd/init-containers"))
+		osReporter.RegisterCollector("Containerd Pea Containers", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden containers ls 'labels."container-type"==pea'`, "containerd/pea-containers"))
+		osReporter.RegisterCollector("Containerd Tasks", command.NewCollector(`/var/vcap/packages/containerd/bin/ctr -a /var/vcap/sys/run/containerd/containerd.sock -n garden tasks ls`, "containerd/tasks"))
 	}
 
 	if err := osReporter.Run(); err != nil {
