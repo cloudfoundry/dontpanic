@@ -229,6 +229,10 @@ var _ = Describe("Integration", func() {
 		tarballShouldContainFile(tarPath, "garden/garden.log.1")
 		tarballShouldContainFile(tarPath, "garden/garden.log.2.gz")
 
+		By("collecting grootfs filesystem usage info")
+		tarballShouldContainFile(tarPath, "grootfs/unprivileged-usage.txt")
+		tarballShouldContainFile(tarPath, "grootfs/privileged-usage.txt")
+
 		By("collecting systat")
 		tarballShouldContainFile(tarPath, "sysstat/sa17")
 

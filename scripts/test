@@ -26,7 +26,10 @@ compile_fly_cmd() {
   task_path=$1
 
   cmd="fly -t $FLY_TARGET"
-  cmd=$cmd" e -c $task_path"
+  cmd=$cmd" e"
+  cmd=$cmd" --inputs-from main/garden"
+  cmd=$cmd" --image garden-ci-image"
+  cmd=$cmd" -c $task_path"
   cmd=$cmd" -i gr-release-develop=${GRR_ROOT}"
   cmd=$cmd" $FLY_ARGS"
   cmd=$cmd" --"

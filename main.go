@@ -12,7 +12,9 @@ import (
 
 	"code.cloudfoundry.org/dontpanic/collectors/command"
 	"code.cloudfoundry.org/dontpanic/collectors/file"
+	"code.cloudfoundry.org/dontpanic/collectors/grootfs"
 	"code.cloudfoundry.org/dontpanic/collectors/process"
+	"code.cloudfoundry.org/dontpanic/commandrunner"
 	"code.cloudfoundry.org/dontpanic/osreporter"
 	flags "github.com/jessevdk/go-flags"
 )
@@ -44,6 +46,8 @@ func main() {
 	osReporter.RegisterNoisyCollector("Max Number of Open Files", command.NewCollector("cat /proc/sys/fs/file-max", "file-max.log"))
 
 	osReporter.RegisterCollector("Disk Usage", command.NewCollector("df -h", "df.log"))
+	osReporter.RegisterCollector("GrootFS Unprivileged Usage", grootfs.NewUsageCollector("/var/vcap/data/grootfs/store", "/var/vcap/data/garden/depot", grootfs.Unprivileged, commandrunner.CommandRunner{}))
+	osReporter.RegisterCollector("GrootFS Privileged Usage", grootfs.NewUsageCollector("/var/vcap/data/grootfs/store", "/var/vcap/data/garden/depot", grootfs.Privileged, commandrunner.CommandRunner{}))
 	osReporter.RegisterCollector("List of Open Files", command.NewCollector("lsof", "lsof.log"))
 	osReporter.RegisterCollector("Map of Inodes to Paths", command.NewCollector(`find / -fprintf inodes '%i %p\n'; lsof -Fi | grep '^i' | cut -c2- | sort | uniq | xargs -i grep -w ^{} inodes; rm inodes`, "inodes.log"), time.Second*20)
 	osReporter.RegisterCollector("Process Information", command.NewCollector("ps -eLo pid,tid,ppid,user:11,comm,state,wchan:35,lstart", "ps-info.log"))
