@@ -379,8 +379,8 @@ func unmount(mountPoint string) {
 func createTestResources(sandboxDir string) {
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenConfigDir), 0755)).To(Succeed())
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), []byte(fmt.Sprintf(iniFileTemplate, "debug")), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "privileged_grootfs_config.yml"), []byte("groot"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "grootfs_config.yml"), []byte("store: /var/vcap/data/grootfs/store/unprivileged"), 0644)).To(Succeed())
+	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "privileged_grootfs_config.yml"), []byte("store: /var/vcap/data/grootfs/store/privileged"), 0644)).To(Succeed())
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "bpm.yml"), []byte("bpm"), 0644)).To(Succeed())
 	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "containerd.toml"), []byte("nerd"), 0644)).To(Succeed())
 

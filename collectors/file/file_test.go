@@ -2,7 +2,6 @@ package file_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -137,7 +136,6 @@ var _ = Describe("file.Collector", func() {
 		})
 
 		JustBeforeEach(func() {
-			fmt.Printf("sourcePath = %+v\n", sourcePath)
 			collErr = file.NewCollector(filepath.Join(sourcePath, "foo*"), "target/").Run(ctx, destinationDir, stdout)
 		})
 

@@ -34,7 +34,7 @@ func (c Collector) Run(ctx context.Context, reportDir string, stdout io.Writer) 
 	for _, procLine := range strings.Split(string(procs), "\n") {
 		proc := strings.Trim(string(procLine), " ")
 
-		procDir := filepath.Join(reportDir, c.destinationPath, fmt.Sprintf("%s", proc))
+		procDir := filepath.Join(reportDir, c.destinationPath, proc)
 		if err := os.MkdirAll(procDir, 0755); err != nil {
 			return err
 		}
