@@ -10,4 +10,5 @@ require (
 	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
 	golang.org/x/sys v0.0.0-20181116152217-5ac8a444bdc5
+	gopkg.in/yaml.v2 v2.2.1
 )
