@@ -26,7 +26,12 @@ type CommandRunner interface {
 	Run(context.Context, string, ...string) ([]byte, error)
 }
 
-const dirName = "grootfs"
+const (
+	dirName               = "grootfs"
+	volumesDirectory      = "volumes"
+	metaDirectory         = "meta"
+	dependenciesDirectory = "dependencies"
+)
 
 func NewUsageCollector(configPath string, cmdRunner CommandRunner) UsageCollector {
 	return UsageCollector{
@@ -77,7 +82,7 @@ func (c UsageCollector) Run(ctx context.Context, reportDir string, stdout io.Wri
 	}
 	defer outputFile.Close()
 
-	volumesPath := filepath.Join(c.config.Store, "volumes")
+	volumesPath := filepath.Join(c.config.Store, volumesDirectory)
 	totalVolumeSizeOnDisk, err := c.sizeOnDisk(volumesPath, false)
 	if err != nil {
 		return fmt.Errorf("failed to calculate total volume size: %v", err)
@@ -115,12 +120,13 @@ func (c UsageCollector) Run(ctx context.Context, reportDir string, stdout io.Wri
 	fmt.Fprintf(outputFile, "%-30s %12d bytes\n", "volumes-used-reported:", usedVolumesSize)
 	fmt.Fprintf(outputFile, "%-30s %12d bytes\n", "volumes-unused-reported:", unusedVolumesSize)
 
-	imagesSize, err := c.imagesSize()
+	imagesSize, quotasSize, err := c.imagesStats()
 	if err != nil {
-		return fmt.Errorf("failed to calculate exclusive image size: %v", err)
+		return fmt.Errorf("failed to get images stats: %v", err)
 	}
 
 	fmt.Fprintf(outputFile, "%-30s %12d bytes\n", "images-exclusive:", imagesSize)
+	fmt.Fprintf(outputFile, "%-30s %12d bytes\n", "quotas-size:", quotasSize)
 
 	backingStoreSize, err := c.sizeOnDisk(c.config.Store+".backing-store", false)
 	if err != nil {
@@ -137,23 +143,25 @@ func (c UsageCollector) Run(ctx context.Context, reportDir string, stdout io.Wri
 	return nil
 }
 
-func (c UsageCollector) imagesSize() (int64, error) {
+func (c UsageCollector) imagesStats() (int64, int64, error) {
 	imageIDs, err := c.getImageIDs()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get image IDs: %v", err)
+		return 0, 0, fmt.Errorf("failed to get image IDs: %v", err)
 	}
 
-	var size int64
+	var imagesSize int64
+	var quotasSize int64
 
 	for _, id := range imageIDs {
-		imageSize, err := c.getImageSize(id)
+		imageStats, err := c.getImageStats(id)
 		if err != nil {
-			return 0, fmt.Errorf("failed to get image size for %q: %v", id, err)
+			return 0, 0, fmt.Errorf("failed to get image size for %q: %v", id, err)
 		}
-		size += imageSize
+		imagesSize += imageStats.DiskUsage.ExclusiveBytesUsed
+		quotasSize += imageStats.DiskUsage.QuotaSizeBytes
 	}
 
-	return size, nil
+	return imagesSize, quotasSize, nil
 }
 
 func (c UsageCollector) getImageIDs() ([]string, error) {
@@ -178,22 +186,23 @@ func (c UsageCollector) getImageIDs() ([]string, error) {
 type stats struct {
 	DiskUsage struct {
 		ExclusiveBytesUsed int64 `json:"exclusive_bytes_used"`
+		QuotaSizeBytes     int64 `json:"quota_size_bytes"`
 	} `json:"disk_usage"`
 }
 
-func (c UsageCollector) getImageSize(id string) (int64, error) {
+func (c UsageCollector) getImageStats(id string) (stats, error) {
 	output, err := c.runner.Run(context.Background(), c.config.GrootFSBin, "--config", c.configPath, "stats", id)
 	if err != nil {
-		return 0, fmt.Errorf("failed to run `grootfs --config %s stat %s`: %v", c.configPath, id, err)
+		return stats{}, fmt.Errorf("failed to run `grootfs --config %s stat %s`: %v", c.configPath, id, err)
 	}
 
 	var usage stats
 	err = json.Unmarshal(output, &usage)
 	if err != nil {
-		return 0, fmt.Errorf("failed to unmarshal grootfs stats output: %v", err)
+		return stats{}, fmt.Errorf("failed to unmarshal grootfs stats output: %v", err)
 	}
 
-	return usage.DiskUsage.ExclusiveBytesUsed, nil
+	return usage, nil
 }
 
 type metaData struct {
@@ -201,7 +210,7 @@ type metaData struct {
 }
 
 func (c UsageCollector) volumeSizeFromMeta(id string) (int64, error) {
-	metaFile := filepath.Join(c.config.Store, "meta", "volume-"+id)
+	metaFile := filepath.Join(c.config.Store, metaDirectory, "volume-"+id)
 	contents, err := ioutil.ReadFile(metaFile)
 	if err != nil {
 		return 0, fmt.Errorf("cannot read meta file %q: %v", metaFile, err)
@@ -230,7 +239,7 @@ func (c UsageCollector) getVolumes() ([]string, []string, error) {
 
 func (c UsageCollector) getUsedVolumes() ([]string, error) {
 	volumes := []string{}
-	dependenciesDir := filepath.Join(c.config.Store, "meta", "dependencies")
+	dependenciesDir := filepath.Join(c.config.Store, metaDirectory, dependenciesDirectory)
 	depsInfos, err := ioutil.ReadDir(dependenciesDir)
 	if err != nil {
 		return nil, fmt.Errorf("error reading dependencies dir %q: %v", dependenciesDir, err)
@@ -255,7 +264,7 @@ func (c UsageCollector) getUsedVolumes() ([]string, error) {
 
 func (c UsageCollector) getUnusedVolumes(usedVolumes []string) ([]string, error) {
 	volumesMap := map[string]struct{}{}
-	volumesDir := filepath.Join(c.config.Store, "volumes")
+	volumesDir := filepath.Join(c.config.Store, volumesDirectory)
 	volumeEntries, err := ioutil.ReadDir(volumesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read volumes dir %q: %v", volumesDir, err)
@@ -289,7 +298,7 @@ func (c UsageCollector) volumesSizeFromMeta(volumes []string) (int64, error) {
 
 func (c UsageCollector) volumesSizeOnDisk(volumes []string) (int64, error) {
 	return volumesSize(volumes, func(volumeID string) (int64, error) {
-		path := filepath.Join(c.config.Store, "volumes", volumeID)
+		path := filepath.Join(c.config.Store, volumesDirectory, volumeID)
 		volSize, err := c.sizeOnDisk(path, false)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get size of volume %q: %v", path, err)

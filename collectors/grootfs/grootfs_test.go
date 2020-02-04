@@ -69,7 +69,7 @@ tardis_bin: /var/vcap/packages/grootfs/bin/tardis
 				}
 				return []byte("123456\tfoo/bar/sha\n"), nil
 			case "/var/vcap/packages/grootfs/bin/grootfs":
-				return []byte(`{"disk_usage": {"exclusive_bytes_used": 3040}}`), nil
+				return []byte(`{"disk_usage": {"exclusive_bytes_used": 3040, "quota_size_bytes": 6000}}`), nil
 			default:
 				Fail("unexpected " + args[0])
 			}
@@ -131,6 +131,10 @@ tardis_bin: /var/vcap/packages/grootfs/bin/tardis
 		It("includes current size of backing file in usage", func() {
 			Expect(contents(usageFilePath)).To(ContainSubstring("backing-store-actual-size:         12345678 bytes"))
 			Expect(contents(usageFilePath)).To(ContainSubstring("backing-store-max-size:           123456789 bytes"))
+		})
+
+		It("includes quotas size", func() {
+			Expect(contents(usageFilePath)).To(ContainSubstring("quotas-size:                          12000 bytes"))
 		})
 
 	})
