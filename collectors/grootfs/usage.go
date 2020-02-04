@@ -83,22 +83,27 @@ func (c UsageCollector) Run(ctx context.Context, reportDir string, stdout io.Wri
 		return fmt.Errorf("failed to calculate total volume size: %v", err)
 	}
 
-	usedVolumesSizeOnDisk, err := c.volumesSizeOnDisk(true)
+	usedVolumes, unusedVolumes, err := c.getVolumes()
+	if err != nil {
+		return fmt.Errorf("failed to get volumes: %v", err)
+	}
+
+	usedVolumesSizeOnDisk, err := c.volumesSizeOnDisk(usedVolumes)
 	if err != nil {
 		return fmt.Errorf("failed to get used volume size on disk: %v", err)
 	}
 
-	unusedVolumesSizeOnDisk, err := c.volumesSizeOnDisk(false)
+	unusedVolumesSizeOnDisk, err := c.volumesSizeOnDisk(unusedVolumes)
 	if err != nil {
 		return fmt.Errorf("failed to get unused volume size on disk: %v", err)
 	}
 
-	usedVolumesSize, err := c.volumesSizeFromMeta(true)
+	usedVolumesSize, err := c.volumesSizeFromMeta(usedVolumes)
 	if err != nil {
 		return fmt.Errorf("failed to calculate used volume size: %v", err)
 	}
 
-	unusedVolumesSize, err := c.volumesSizeFromMeta(false)
+	unusedVolumesSize, err := c.volumesSizeFromMeta(unusedVolumes)
 	if err != nil {
 		return fmt.Errorf("failed to calculate unused volume size: %v", err)
 	}
@@ -213,31 +218,47 @@ func (c UsageCollector) volumeSizeFromMeta(id string) (int64, error) {
 	return sizedata.Size, nil
 }
 
-func (c UsageCollector) getVolumes() (map[string]bool, error) {
-	linkDir := filepath.Join(c.config.Store, "l")
-	volumes := map[string]bool{}
-
-	err := filepath.Walk(linkDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return fmt.Errorf("error walking path %q: %v", path, err)
-		}
-		if info.Mode()&os.ModeSymlink == 0 {
-			return nil
-		}
-		target, err := os.Readlink(path)
-		if err != nil {
-			return fmt.Errorf("error reading link target from %q: %v", path, err)
-		}
-		volumeID := filepath.Base(target)
-		if _, ok := volumes[volumeID]; !ok {
-			volumes[volumeID] = true
-		}
-		return nil
-	})
+func (c UsageCollector) getVolumes() ([]string, []string, error) {
+	usedVolumes, err := c.getUsedVolumes()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	unusedVolumes, err := c.getUnusedVolumes(usedVolumes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return usedVolumes, unusedVolumes, nil
+}
+
+func (c UsageCollector) getUsedVolumes() ([]string, error) {
+	volumes := []string{}
+	dependenciesDir := filepath.Join(c.config.Store, "meta", "dependencies")
+	depsInfos, err := ioutil.ReadDir(dependenciesDir)
+	if err != nil {
+		return nil, fmt.Errorf("error reading dependencies dir %q: %v", dependenciesDir, err)
+	}
+
+	for _, di := range depsInfos {
+		depFilePath := filepath.Join(dependenciesDir, di.Name())
+		depBytes, err := ioutil.ReadFile(depFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("error reading dependencies file %q: %v", depFilePath, err)
+		}
+
+		var volIds []string
+		if err := json.Unmarshal(depBytes, &volIds); err != nil {
+			return nil, fmt.Errorf("error unmarshaling dependencies file %q content %q: %v", depFilePath, string(depBytes), err)
+		}
+
+		volumes = append(volumes, volIds...)
+	}
+	return volumes, nil
+}
+
+func (c UsageCollector) getUnusedVolumes(usedVolumes []string) ([]string, error) {
+	volumesMap := map[string]struct{}{}
 	volumesDir := filepath.Join(c.config.Store, "volumes")
 	volumeEntries, err := ioutil.ReadDir(volumesDir)
 	if err != nil {
@@ -245,59 +266,40 @@ func (c UsageCollector) getVolumes() (map[string]bool, error) {
 	}
 
 	for _, v := range volumeEntries {
-		name := v.Name()
-		if _, ok := volumes[name]; ok {
-			continue
-		}
-		volumes[name] = false
+		volumesMap[v.Name()] = struct{}{}
+	}
+
+	for _, usedVolume := range usedVolumes {
+		delete(volumesMap, usedVolume)
+	}
+
+	volumes := []string{}
+	for v := range volumesMap {
+		volumes = append(volumes, v)
 	}
 
 	return volumes, nil
 }
 
-func (c UsageCollector) volumesSizeFromMeta(isUsed bool) (int64, error) {
-	var size int64
-
-	volumes, err := c.getVolumes()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get used volumes: %v", err)
-	}
-
-	for volumeID, used := range volumes {
-		if used != isUsed {
-			continue
-		}
+func (c UsageCollector) volumesSizeFromMeta(volumes []string) (int64, error) {
+	return volumesSize(volumes, func(volumeID string) (int64, error) {
 		volSize, err := c.volumeSizeFromMeta(volumeID)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get size of volume %q: %v", volumeID, err)
 		}
-		size += volSize
-	}
-
-	return size, nil
+		return volSize, err
+	})
 }
 
-func (c UsageCollector) volumesSizeOnDisk(isUsed bool) (int64, error) {
-	var size int64
-
-	volumes, err := c.getVolumes()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get used volumes: %v", err)
-	}
-
-	for volumeID, used := range volumes {
-		if used != isUsed {
-			continue
-		}
+func (c UsageCollector) volumesSizeOnDisk(volumes []string) (int64, error) {
+	return volumesSize(volumes, func(volumeID string) (int64, error) {
 		path := filepath.Join(c.config.Store, "volumes", volumeID)
 		volSize, err := c.sizeOnDisk(path, false)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get size of volume %q: %v", path, err)
 		}
-		size += volSize
-	}
-
-	return size, nil
+		return volSize, err
+	})
 }
 
 func (c UsageCollector) sizeOnDisk(path string, apparentSize bool) (int64, error) {
@@ -319,5 +321,19 @@ func (c UsageCollector) sizeOnDisk(path string, apparentSize bool) (int64, error
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse int %q: %v", parts[0], err)
 	}
+	return size, nil
+}
+
+func volumesSize(volumes []string, calcSize func(string) (int64, error)) (int64, error) {
+	var size int64
+
+	for _, volumeID := range volumes {
+		volSize, err := calcSize(volumeID)
+		if err != nil {
+			return 0, err
+		}
+		size += volSize
+	}
+
 	return size, nil
 }
