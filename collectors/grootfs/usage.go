@@ -134,10 +134,6 @@ func (c UsageCollector) Run(ctx context.Context, reportDir string, stdout io.Wri
 	}
 	fmt.Fprintf(outputFile, "%-30s %12d bytes\n", "backing-store-max-size:", backingStoreMaxSize)
 
-	// du -B1 --apparent-size unprivileged.backing-store
-	// du -B1 unprivileged.backing-store
-	// df -B1 ./unprivileged
-
 	return nil
 }
 
