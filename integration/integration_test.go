@@ -61,7 +61,7 @@ var _ = Describe("Integration", func() {
 		var err error
 		session, err = gexec.Start(cmd, GinkgoWriter, GinkgoWriter)
 		Expect(err).NotTo(HaveOccurred())
-		Eventually(session, time.Second*50).Should(gexec.Exit())
+		Eventually(session, time.Second*70).Should(gexec.Exit())
 	})
 
 	It("produces a report correctly", func() {
