@@ -28,12 +28,22 @@ type Config struct {
 }
 
 func main() {
+	var opts struct {
+		SigQUIT bool `long:"sigquit" description:"Send a SIGQUIT to the gdn process"`
+	}
+
+	flags.ParseArgs(&opts, os.Args)
+
 	checkIsRoot()
 	checkIsNotBpm()
 	checkGardenLogLevel()
-	reportDir := createReportDir("/var/vcap/data/tmp")
 
+	reportDir := createReportDir("/var/vcap/data/tmp")
 	osReporter := osreporter.New(reportDir, os.Stdout)
+
+	if opts.SigQUIT {
+		osReporter.RegisterCollector("Dump gdn goroutines", command.NewCollector("pkill -QUIT gdn", "/dev/null"))
+	}
 
 	osReporter.RegisterNoisyCollector("Date", command.NewCollector("date", "date.log"))
 	osReporter.RegisterNoisyCollector("Uptime", command.NewCollector("uptime", "uptime.log"))

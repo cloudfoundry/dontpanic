@@ -47,7 +47,6 @@ var _ = Describe("Integration", func() {
 		Expect(err).NotTo(HaveOccurred())
 		createTestResources(sandboxDir)
 		mountAll(sandboxDir, bindMounts)
-
 		cmd = exec.Command("chroot", sandboxDir, "./dontpanic")
 	})
 
@@ -319,6 +318,26 @@ var _ = Describe("Integration", func() {
 			Expect(session).NotTo(gbytes.Say("## Containerd tasks"))
 		})
 	})
+
+	When("passed the --sigquit flag", func() {
+		var gdnSession *gexec.Session
+
+		BeforeEach(func() {
+			cmd.Args = append(cmd.Args, "--sigquit")
+			gdnCmd := exec.Command("./assets/gdn")
+			var err error
+			gdnSession, err = gexec.Start(gdnCmd, GinkgoWriter, GinkgoWriter)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			gdnSession.Kill()
+		})
+
+		It("sends a SIGQUIT to the gdn process", func() {
+			Eventually(gdnSession).Should(gexec.Exit(131))
+		})
+	})
 })
 
 func tarballShouldContainFile(tarballPath, filePath string) {
@@ -362,6 +381,7 @@ func mountAll(rootDir string, dirs []string) {
 		Expect(unix.Mount(dir, mountPoint, "", unix.MS_BIND, "")).To(Succeed())
 	}
 }
+
 func unmountAll(rootDir string, dirs []string) {
 	for _, dir := range dirs {
 		unmount(filepath.Join(rootDir, dir))
