@@ -42,7 +42,7 @@ func main() {
 	osReporter := osreporter.New(reportDir, os.Stdout)
 
 	if opts.SigQUIT {
-		osReporter.RegisterCollector("Dump gdn goroutines", command.NewCollector("pkill -QUIT gdn", "/dev/null"))
+		osReporter.RegisterCollector("Dump gdn goroutines", command.NewDiscardCollector("pkill -QUIT gdn"))
 	}
 
 	osReporter.RegisterNoisyCollector("Date", command.NewCollector("date", "date.log"))

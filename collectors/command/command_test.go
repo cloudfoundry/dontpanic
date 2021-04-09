@@ -13,69 +13,91 @@ import (
 	"github.com/onsi/gomega/gbytes"
 )
 
-var _ = Describe("Command Runner", func() {
+var _ = Describe("Command Output Collector", func() {
 	var (
-		cmd      string
-		ctx      context.Context
-		dstPath  string
-		stdout   io.Writer
-		filename string
+		ctx       context.Context
+		dstPath   string
+		stdout    io.Writer
+		collector command.Collector
 
 		err error
 	)
 
 	BeforeEach(func() {
-		ctx = context.TODO()
+		ctx = context.Background()
 		dstPath, err = ioutil.TempDir("", "")
 		Expect(err).NotTo(HaveOccurred())
 		stdout = gbytes.NewBuffer()
-		filename = "hello"
 	})
 
-	JustBeforeEach(func() {
-		err = command.NewCollector(cmd, filename).Run(ctx, dstPath, stdout)
-	})
+	Describe("collect output to a file", func() {
+		var (
+			filename string
+			cmd      string
+		)
 
-	When("cmd is a simple executable", func() {
 		BeforeEach(func() {
-			cmd = "echo hello world"
+			filename = "hello"
 		})
 
-		It("returns the byte output", func() {
-			Expect(err).NotTo(HaveOccurred())
-			Expect(stdout).To(gbytes.Say("hello world\n"))
+		JustBeforeEach(func() {
+			collector = command.NewCollector(cmd, filename)
+			err = collector.Run(ctx, dstPath, stdout)
+		})
 
-			fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(fileContents).To(Equal([]byte("hello world\n")))
+		When("cmd is a simple executable", func() {
+			BeforeEach(func() {
+				cmd = "echo hello world"
+			})
+
+			It("returns the byte output", func() {
+				Expect(err).NotTo(HaveOccurred())
+				Expect(stdout).To(gbytes.Say("hello world\n"))
+
+				fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(fileContents).To(Equal([]byte("hello world\n")))
+			})
+		})
+
+		When("cmd is a pipeline", func() {
+			BeforeEach(func() {
+				cmd = "seq 2 10 | wc -l"
+			})
+
+			It("executes the pipeline", func() {
+				Expect(err).NotTo(HaveOccurred())
+				Expect(stdout).To(gbytes.Say("9"))
+
+				fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(strings.Trim(string(fileContents), " ")).To(Equal("9\n"))
+			})
+		})
+
+		When("command fails and has stdout and stderr", func() {
+			BeforeEach(func() {
+				cmd = "echo foo; echo bar >&2; exit 1"
+			})
+
+			It("returns error containing bar", func() {
+				Expect(err).To(MatchError(ContainSubstring("bar")))
+				Expect(filepath.Join(dstPath, filename)).NotTo(BeAnExistingFile())
+				Expect(stdout).NotTo(gbytes.Say("foo"))
+			})
 		})
 	})
 
-	When("cmd is a pipeline", func() {
-		BeforeEach(func() {
-			cmd = "seq 2 10 | wc -l"
+	Describe("discard collector", func() {
+		JustBeforeEach(func() {
+			collector = command.NewDiscardCollector("echo hello world")
+			err = collector.Run(ctx, dstPath, stdout)
 		})
 
-		It("executes the pipeline", func() {
+		It("does not write to a file", func() {
+			filesInDstPath, err := ioutil.ReadDir(dstPath)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(stdout).To(gbytes.Say("9"))
-
-			fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
-			Expect(err).NotTo(HaveOccurred())
-			Expect(strings.Trim(string(fileContents), " ")).To(Equal("9\n"))
+			Expect(filesInDstPath).To(BeEmpty())
 		})
 	})
-
-	When("command fails and has stdout and stderr", func() {
-		BeforeEach(func() {
-			cmd = "echo foo; echo bar >&2; exit 1"
-		})
-
-		It("returns error containing bar", func() {
-			Expect(err).To(MatchError(ContainSubstring("bar")))
-			Expect(filepath.Join(dstPath, filename)).NotTo(BeAnExistingFile())
-			Expect(stdout).NotTo(gbytes.Say("foo"))
-		})
-	})
-
 })
