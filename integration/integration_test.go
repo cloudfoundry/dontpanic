@@ -338,6 +338,30 @@ var _ = Describe("Integration", func() {
 			Eventually(gdnSession).Should(gexec.Exit(131))
 		})
 	})
+
+	When("passed the --help flag", func() {
+		BeforeEach(func() {
+			cmd.Args = append(cmd.Args, "--help")
+		})
+
+		It("prints the usage and exits", func() {
+			Expect(session.ExitCode()).To(Equal(0))
+			Expect(session).To(gbytes.Say("Usage"))
+			Expect(filepath.Join(sandboxDir, "var/vcap/data/tmp/")).NotTo(BeADirectory())
+		})
+	})
+
+	When("passed an unknown flag", func() {
+		BeforeEach(func() {
+			cmd.Args = append(cmd.Args, "--hello")
+		})
+
+		It("prints the usage and exits", func() {
+			Expect(session.ExitCode()).To(Equal(1))
+			Expect(session.Err).To(gbytes.Say("unknown flag"))
+			Expect(filepath.Join(sandboxDir, "var/vcap/data/tmp/")).NotTo(BeADirectory())
+		})
+	})
 })
 
 func tarballShouldContainFile(tarballPath, filePath string) {

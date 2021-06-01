@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,7 +33,7 @@ func main() {
 		SigQUIT bool `long:"sigquit" description:"Send a SIGQUIT to the gdn process"`
 	}
 
-	flags.ParseArgs(&opts, os.Args)
+	handleFlagErrors(flags.ParseArgs(&opts, os.Args))
 
 	checkIsRoot()
 	checkIsNotBpm()
@@ -153,4 +154,15 @@ func createReportDir(baseDir string) string {
 		fmt.Fprintln(os.Stderr, aurora.Red(fmt.Sprintf("cannot create report directory %q: %s", path, err.Error())))
 	}
 	return path
+}
+
+func handleFlagErrors(_ []string, err error) {
+	flagErr := &flags.Error{}
+	if errors.As(err, &flagErr) && flagErr.Type == flags.ErrHelp {
+		os.Exit(0)
+	}
+
+	if err != nil {
+		os.Exit(1)
+	}
 }
