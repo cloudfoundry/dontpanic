@@ -9,13 +9,12 @@ From GRR v1.17.1 `dontpanic` comes installed on all VMs running the Garden job.
 
 It should be run as root and the resulting tar sent to the Garden team: `/var/vcap/packages/dontpanic/bin/dontpanic`.
 
-Those running  GRR < v1.17.1 can download the latest `dontpanic` release and execute it on the host VM as root:
+Those running GRR < v1.17.1 can download the latest `dontpanic` release and execute it on the host VM as root:
 
-eg: `wget https://github.com/cloudfoundry/dontpanic/releases/download/v1.0/dontpanic && chmod +x ./dontpanic && ./dontpanic`.
+eg: `wget https://github.com/cloudfoundry/dontpanic/releases/download/v1.1/dontpanic && chmod +x ./dontpanic && ./dontpanic`.
 
 NB: If you are running the Garden job in rootless mode (ie Garden is running inside a BPM container), you should still execute `dontpanic` as root
-from outside the BPM container. 
-
+from outside the BPM container.
 
 ## What is in my report?
 
@@ -51,16 +50,17 @@ _You can inspect which commands are being run to gather the above by looking at 
 ## How can I use the data in the report?
 
 ### Sysstat
+
 In the sysstat folder you can find multiple files containing system statistics (CPU, Memory, I/O, ...) over time.
 
 In order to make use of this information, you need to do the following:
+
 ```
 export LC_ALL=C
 for file in $(ls sysstat/sa[0-9]*) ; do sar -A -f "$file"  >> sa.data.txt; done
 ```
 
 and then use [`ksar`](https://www.cyberciti.biz/tips/identifying-linux-bottlenecks-sar-graphs-with-ksar.html) to turn the result into pdf graphs.
-
 
 There are 2 types of files in `sysstat`: `sa*` and `sar*`. The `sa`s are binaries updated every 10 mins or so. The `sar`s are text files generated once per day. Therefore you probably want to parse the `sa` files as they will be more current.
 
