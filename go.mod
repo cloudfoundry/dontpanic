@@ -7,7 +7,7 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/onsi/ginkgo/v2 v2.5.0
 	github.com/onsi/gomega v1.24.0
-	golang.org/x/sys v0.2.0
+	golang.org/x/sys v0.3.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
