@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/onsi/ginkgo/v2 v2.8.4
+	github.com/onsi/ginkgo/v2 v2.9.0
 	github.com/onsi/gomega v1.27.1
 	golang.org/x/sys v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
