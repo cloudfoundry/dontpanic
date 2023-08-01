@@ -9,3 +9,5 @@ jobs:
     steps:
       - id: govulncheck
         uses: golang/govulncheck-action@1
+        with:
+           go-package: ./...
