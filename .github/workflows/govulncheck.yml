@@ -1,8 +1,6 @@
-on:
+on: workflow_dispatch
 #  schedule:
 #  - cron: '0 13-21/2 * * 1-5'
-workflow_dispatch
-
 jobs:
   govulncheck_job:
     runs-on: ubuntu-latest
