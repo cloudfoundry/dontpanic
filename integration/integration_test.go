@@ -367,7 +367,7 @@ var _ = Describe("Integration", func() {
 func tarballShouldContainFile(tarballPath, filePath string) {
 	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found: "+tarballPath)
 
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
+	extractedOsReportPath := strings.TrimSuffix(filepath.Base(tarballPath), ".tar.gz")
 	logFilePath := filepath.Join(extractedOsReportPath, filePath)
 	ExpectWithOffset(1, listTarball(tarballPath)).To(ContainSubstring(logFilePath))
 }
@@ -375,7 +375,7 @@ func tarballShouldContainFile(tarballPath, filePath string) {
 func tarballFileContents(tarballPath, filePath string) []byte {
 	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found: "+tarballPath)
 
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
+	extractedOsReportPath := strings.TrimSuffix(filepath.Base(tarballPath), ".tar.gz")
 	osDir := filepath.Base(extractedOsReportPath)
 
 	cmd := exec.Command("tar", "xf", tarballPath, filepath.Join(osDir, filePath), "-O")

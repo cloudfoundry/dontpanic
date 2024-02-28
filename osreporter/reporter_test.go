@@ -108,7 +108,7 @@ var _ = Describe("Reporter", func() {
 })
 
 func tarballFileContents(tarballPath, filePath string) []byte {
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
+	extractedOsReportPath := strings.TrimSuffix(filepath.Base(tarballPath), ".tar.gz")
 	osDir := filepath.Base(extractedOsReportPath)
 
 	cmd := exec.Command("tar", "xzf", tarballPath, filepath.Join(osDir, filePath), "-O")
