@@ -3,7 +3,6 @@ package file_test
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -28,10 +27,10 @@ var _ = Describe("file.Collector", func() {
 		ctx = context.TODO()
 
 		var err error
-		sourceDir, err = ioutil.TempDir("", "")
+		sourceDir, err = os.MkdirTemp("", "")
 		Expect(err).NotTo(HaveOccurred())
 
-		destinationDir, err = ioutil.TempDir("", "")
+		destinationDir, err = os.MkdirTemp("", "")
 		Expect(err).NotTo(HaveOccurred())
 
 		stdout = gbytes.NewBuffer()
@@ -46,7 +45,7 @@ var _ = Describe("file.Collector", func() {
 		BeforeEach(func() {
 			var err error
 			sourcePath = filepath.Join(sourceDir, "file-to-collect")
-			err = ioutil.WriteFile(sourcePath, []byte("file-to-collect"), 0755)
+			err = os.WriteFile(sourcePath, []byte("file-to-collect"), 0755)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -60,7 +59,7 @@ var _ = Describe("file.Collector", func() {
 			Expect(collErr).NotTo(HaveOccurred())
 			Expect(destinationFilePath).To(BeAnExistingFile())
 
-			destinationFileContents, err := ioutil.ReadFile(destinationFilePath)
+			destinationFileContents, err := os.ReadFile(destinationFilePath)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(destinationFileContents).To(Equal([]byte("file-to-collect")))
 		})
@@ -101,7 +100,7 @@ var _ = Describe("file.Collector", func() {
 			Expect(os.MkdirAll(sourcePath, 0755)).To(Succeed())
 
 			for _, f := range files {
-				err := ioutil.WriteFile(filepath.Join(sourcePath, f), []byte("file-to-collect"), 0644)
+				err := os.WriteFile(filepath.Join(sourcePath, f), []byte("file-to-collect"), 0644)
 				Expect(err).NotTo(HaveOccurred())
 			}
 		})
@@ -130,7 +129,7 @@ var _ = Describe("file.Collector", func() {
 			Expect(os.MkdirAll(sourcePath, 0755)).To(Succeed())
 
 			for _, f := range files {
-				err := ioutil.WriteFile(filepath.Join(sourcePath, f), []byte("file-to-collect"), 0644)
+				err := os.WriteFile(filepath.Join(sourcePath, f), []byte("file-to-collect"), 0644)
 				Expect(err).NotTo(HaveOccurred())
 			}
 		})

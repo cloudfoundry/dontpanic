@@ -3,7 +3,6 @@ package process
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,7 +67,7 @@ func (c *Collector) collectProcData(ctx context.Context, command, destFile strin
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(destFile, out, 0644)
+	err = os.WriteFile(destFile, out, 0644)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,7 +64,7 @@ func (r Reporter) Run() error {
 	for _, collector := range r.collectors {
 		r.logHeader(logFile, collector.name)
 
-		out := ioutil.Discard
+		out := io.Discard
 		if collector.echoOutput {
 			out = r.stdout
 		}

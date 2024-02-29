@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,9 +35,9 @@ var _ = Describe("Reporter", func() {
 	BeforeEach(func() {
 		var err error
 
-		reportDir, err = ioutil.TempDir("", "")
+		reportDir, err = os.MkdirTemp("", "")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(ioutil.WriteFile(filepath.Join(reportDir, "hello"), []byte("hello"), 0644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(reportDir, "hello"), []byte("hello"), 0644)).To(Succeed())
 
 		outputWriter = gbytes.NewBuffer()
 
@@ -72,7 +71,7 @@ var _ = Describe("Reporter", func() {
 
 		_, actualDstPath, actualStdout := collectorOne.RunArgsForCall(0)
 		Expect(actualDstPath).To(Equal(reportDir))
-		Expect(actualStdout).To(Equal(ioutil.Discard))
+		Expect(actualStdout).To(Equal(io.Discard))
 	})
 
 	When("registering a collector with stdout printing", func() {
