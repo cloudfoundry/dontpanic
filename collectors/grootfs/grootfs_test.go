@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,11 +44,11 @@ tardis_bin: /var/vcap/packages/grootfs/bin/tardis
 
 	BeforeEach(func() {
 		var err error
-		tmpDir, err = ioutil.TempDir("", "")
+		tmpDir, err = os.MkdirTemp("", "")
 		Expect(err).NotTo(HaveOccurred())
 
 		configFilePath = filepath.Join(tmpDir, "config.yml")
-		err = ioutil.WriteFile(configFilePath, []byte(fmt.Sprintf(configFileTemplate, tmpDir)), 0644)
+		err = os.WriteFile(configFilePath, []byte(fmt.Sprintf(configFileTemplate, tmpDir)), 0644)
 		Expect(err).NotTo(HaveOccurred())
 
 		fakeRunner = new(grootfsfakes.FakeCommandRunner)
@@ -106,11 +105,11 @@ tardis_bin: /var/vcap/packages/grootfs/bin/tardis
 			Expect(os.MkdirAll(volumeDir1, 0755)).To(Succeed())
 			Expect(os.MkdirAll(volumeDir2, 0755)).To(Succeed())
 			Expect(os.MkdirAll(volumeDir3, 0755)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(dependenciesDir, "image:image1.json"), []byte(`["vol123"]`), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(dependenciesDir, "image:image2.json"), []byte(`["vol456"]`), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(metaDir, "volume-vol123"), []byte(`{"Size": 1024}`), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(metaDir, "volume-vol456"), []byte(`{"Size": 2048}`), 0644)).To(Succeed())
-			Expect(ioutil.WriteFile(filepath.Join(metaDir, "volume-vol789"), []byte(`{"Size": 4096}`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(dependenciesDir, "image:image1.json"), []byte(`["vol123"]`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(dependenciesDir, "image:image2.json"), []byte(`["vol456"]`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(metaDir, "volume-vol123"), []byte(`{"Size": 1024}`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(metaDir, "volume-vol456"), []byte(`{"Size": 2048}`), 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(metaDir, "volume-vol789"), []byte(`{"Size": 4096}`), 0644)).To(Succeed())
 		})
 
 		It("includes stats from calling du on volumes", func() {
@@ -141,7 +140,7 @@ tardis_bin: /var/vcap/packages/grootfs/bin/tardis
 })
 
 func contents(path string) string {
-	b, err := ioutil.ReadFile(path)
+	b, err := os.ReadFile(path)
 	Expect(err).NotTo(HaveOccurred())
 	return string(b)
 }

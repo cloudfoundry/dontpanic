@@ -2,7 +2,6 @@ package process_test
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,7 +29,7 @@ var _ = Describe("Process", func() {
 		stdout = gbytes.NewBuffer()
 
 		var err error
-		destDir, err = ioutil.TempDir("", "")
+		destDir, err = os.MkdirTemp("", "")
 		Expect(err).NotTo(HaveOccurred())
 		processCollector = process.NewCollector("procDataDir")
 	})

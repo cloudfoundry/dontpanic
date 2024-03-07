@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -46,7 +45,7 @@ type grootfsConfig struct {
 }
 
 func (c UsageCollector) parseGrootfsConfig() (grootfsConfig, error) {
-	contents, err := ioutil.ReadFile(c.configPath)
+	contents, err := os.ReadFile(c.configPath)
 	if err != nil {
 		return grootfsConfig{}, fmt.Errorf("failed to read grootfs config file %q: %v", c.configPath, err)
 	}
@@ -168,7 +167,7 @@ func (c UsageCollector) getImageIDs() ([]string, error) {
 	ids := []string{}
 
 	imagesDir := filepath.Join(c.config.Store, "images")
-	entries, err := ioutil.ReadDir(imagesDir)
+	entries, err := os.ReadDir(imagesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read images directory %q: %v", imagesDir, err)
 	}
@@ -211,7 +210,7 @@ type metaData struct {
 
 func (c UsageCollector) volumeSizeFromMeta(id string) (int64, error) {
 	metaFile := filepath.Join(c.config.Store, metaDirectory, "volume-"+id)
-	contents, err := ioutil.ReadFile(metaFile)
+	contents, err := os.ReadFile(metaFile)
 	if err != nil {
 		return 0, fmt.Errorf("cannot read meta file %q: %v", metaFile, err)
 	}
@@ -240,14 +239,14 @@ func (c UsageCollector) getVolumes() ([]string, []string, error) {
 func (c UsageCollector) getUsedVolumes() ([]string, error) {
 	volumes := []string{}
 	dependenciesDir := filepath.Join(c.config.Store, metaDirectory, dependenciesDirectory)
-	depsInfos, err := ioutil.ReadDir(dependenciesDir)
+	depsInfos, err := os.ReadDir(dependenciesDir)
 	if err != nil {
 		return nil, fmt.Errorf("error reading dependencies dir %q: %v", dependenciesDir, err)
 	}
 
 	for _, di := range depsInfos {
 		depFilePath := filepath.Join(dependenciesDir, di.Name())
-		depBytes, err := ioutil.ReadFile(depFilePath)
+		depBytes, err := os.ReadFile(depFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading dependencies file %q: %v", depFilePath, err)
 		}
@@ -265,7 +264,7 @@ func (c UsageCollector) getUsedVolumes() ([]string, error) {
 func (c UsageCollector) getUnusedVolumes(usedVolumes []string) ([]string, error) {
 	volumesMap := map[string]struct{}{}
 	volumesDir := filepath.Join(c.config.Store, volumesDirectory)
-	volumeEntries, err := ioutil.ReadDir(volumesDir)
+	volumeEntries, err := os.ReadDir(volumesDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read volumes dir %q: %v", volumesDir, err)
 	}

@@ -2,7 +2,6 @@ package integration_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,7 +42,7 @@ var _ = Describe("Integration", func() {
 
 	BeforeEach(func() {
 		var err error
-		sandboxDir, err = ioutil.TempDir("", "dontpanic-sandbox")
+		sandboxDir, err = os.MkdirTemp("", "dontpanic-sandbox")
 		Expect(err).NotTo(HaveOccurred())
 		createTestResources(sandboxDir)
 		mountAll(sandboxDir, bindMounts)
@@ -269,7 +268,7 @@ var _ = Describe("Integration", func() {
 	When("the garden log level is set to error", func() {
 		BeforeEach(func() {
 			newConfig := []byte(fmt.Sprintf(iniFileTemplate, "error"))
-			Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), newConfig, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), newConfig, 0644)).To(Succeed())
 		})
 
 		It("warns and continues", func() {
@@ -281,7 +280,7 @@ var _ = Describe("Integration", func() {
 	When("the garden log level is set to fatal", func() {
 		BeforeEach(func() {
 			newConfig := []byte(fmt.Sprintf(iniFileTemplate, "fatal"))
-			Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), newConfig, 0644)).To(Succeed())
+			Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), newConfig, 0644)).To(Succeed())
 		})
 
 		It("warns and continues", func() {
@@ -367,7 +366,7 @@ var _ = Describe("Integration", func() {
 func tarballShouldContainFile(tarballPath, filePath string) {
 	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found: "+tarballPath)
 
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
+	extractedOsReportPath := strings.TrimSuffix(filepath.Base(tarballPath), ".tar.gz")
 	logFilePath := filepath.Join(extractedOsReportPath, filePath)
 	ExpectWithOffset(1, listTarball(tarballPath)).To(ContainSubstring(logFilePath))
 }
@@ -375,7 +374,7 @@ func tarballShouldContainFile(tarballPath, filePath string) {
 func tarballFileContents(tarballPath, filePath string) []byte {
 	ExpectWithOffset(1, tarballPath).ToNot(BeEmpty(), "tarball not found: "+tarballPath)
 
-	extractedOsReportPath := strings.TrimRight(filepath.Base(tarballPath), ".tar.gz")
+	extractedOsReportPath := strings.TrimSuffix(filepath.Base(tarballPath), ".tar.gz")
 	osDir := filepath.Base(extractedOsReportPath)
 
 	cmd := exec.Command("tar", "xf", tarballPath, filepath.Join(osDir, filePath), "-O")
@@ -422,36 +421,36 @@ func unmount(mountPoint string) {
 
 func createTestResources(sandboxDir string) {
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenConfigDir), 0755)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), []byte(fmt.Sprintf(iniFileTemplate, "debug")), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "grootfs_config.yml"), []byte("store: /var/vcap/data/grootfs/store/unprivileged"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "privileged_grootfs_config.yml"), []byte("store: /var/vcap/data/grootfs/store/privileged"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "bpm.yml"), []byte("bpm"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "containerd.toml"), []byte("nerd"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "config.ini"), []byte(fmt.Sprintf(iniFileTemplate, "debug")), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "grootfs_config.yml"), []byte("store: /var/vcap/data/grootfs/store/unprivileged"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "privileged_grootfs_config.yml"), []byte("store: /var/vcap/data/grootfs/store/privileged"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "bpm.yml"), []byte("bpm"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenConfigDir, "containerd.toml"), []byte("nerd"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenLogDir), 0755)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log"), []byte("cur"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log.1"), []byte("prev"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log"), []byte("cur"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log.1"), []byte("prev"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, gardenLogDir, "garden.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, varLogDir), 0755)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log"), []byte("cur"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log.1"), []byte("prev"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log"), []byte("cur"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log.1"), []byte("prev"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "kern.log.2.gz"), []byte("Z"), 0644)).To(Succeed())
 
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog"), []byte("cur"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.1"), []byte("prev"), 0644)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.2.gz"), []byte("Z"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog"), []byte("cur"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.1"), []byte("prev"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "syslog.2.gz"), []byte("Z"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, varLogDir, "sysstat"), 0755)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, varLogDir, "sysstat", "sa17"), []byte("meh"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, varLogDir, "sysstat", "sa17"), []byte("meh"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, monitDir), 0755)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, monitDir, "monit.log"), []byte("monit"), 0644)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, gardenDepotDir, "container1"), 0755)).To(Succeed())
 
 	Expect(os.MkdirAll(filepath.Join(sandboxDir, filepath.Dir(containerdSocketPath)), 0755)).To(Succeed())
-	Expect(ioutil.WriteFile(filepath.Join(sandboxDir, containerdSocketPath), []byte("just-here"), 0644)).To(Succeed())
+	Expect(os.WriteFile(filepath.Join(sandboxDir, containerdSocketPath), []byte("just-here"), 0644)).To(Succeed())
 
 	Expect(exec.Command("cp", dontPanicBin, filepath.Join(sandboxDir, "dontpanic")).Run()).To(Succeed())
 }

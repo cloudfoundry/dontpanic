@@ -3,7 +3,7 @@ package command_test
 import (
 	"context"
 	"io"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -25,7 +25,7 @@ var _ = Describe("Command Output Collector", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		dstPath, err = ioutil.TempDir("", "")
+		dstPath, err = os.MkdirTemp("", "")
 		Expect(err).NotTo(HaveOccurred())
 		stdout = gbytes.NewBuffer()
 	})
@@ -54,7 +54,7 @@ var _ = Describe("Command Output Collector", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(stdout).To(gbytes.Say("hello world\n"))
 
-				fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
+				fileContents, err := os.ReadFile(filepath.Join(dstPath, filename))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(fileContents).To(Equal([]byte("hello world\n")))
 			})
@@ -69,7 +69,7 @@ var _ = Describe("Command Output Collector", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(stdout).To(gbytes.Say("9"))
 
-				fileContents, err := ioutil.ReadFile(filepath.Join(dstPath, filename))
+				fileContents, err := os.ReadFile(filepath.Join(dstPath, filename))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(strings.Trim(string(fileContents), " ")).To(Equal("9\n"))
 			})
@@ -95,7 +95,7 @@ var _ = Describe("Command Output Collector", func() {
 		})
 
 		It("does not write to a file", func() {
-			filesInDstPath, err := ioutil.ReadDir(dstPath)
+			filesInDstPath, err := os.ReadDir(dstPath)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(filesInDstPath).To(BeEmpty())
 		})

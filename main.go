@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -107,7 +106,7 @@ func checkIsRoot() {
 }
 
 func checkIsNotBpm() {
-	contents, err := ioutil.ReadFile("/proc/1/cmdline")
+	contents, err := os.ReadFile("/proc/1/cmdline")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, aurora.Red("Cannot determine if running in bpm: cannot read cmdline").Bold())
 		os.Exit(1)
