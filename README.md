@@ -13,9 +13,6 @@ Those running GRR < v1.17.1 can download the latest `dontpanic` release and exec
 
 eg: `wget https://github.com/cloudfoundry/dontpanic/releases/download/v1.1/dontpanic && chmod +x ./dontpanic && ./dontpanic`.
 
-NB: If you are running the Garden job in rootless mode (ie Garden is running inside a BPM container), you should still execute `dontpanic` as root
-from outside the BPM container.
-
 ## What is in my report?
 
 - The current date
