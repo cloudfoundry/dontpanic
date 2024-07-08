@@ -18,6 +18,6 @@ require (
 	github.com/google/pprof v0.0.0-20240625030939-27f56978b8b0 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
-	golang.org/x/tools v0.22.0 // indirect
+	golang.org/x/tools v0.23.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
