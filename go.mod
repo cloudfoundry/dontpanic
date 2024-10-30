@@ -7,8 +7,8 @@ toolchain go1.22.3
 require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/onsi/ginkgo/v2 v2.20.2
-	github.com/onsi/gomega v1.34.2
+	github.com/onsi/ginkgo/v2 v2.21.0
+	github.com/onsi/gomega v1.35.0
 	golang.org/x/sys v0.26.0
 	gopkg.in/yaml.v2 v2.4.0
 )
