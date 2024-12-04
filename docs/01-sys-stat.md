@@ -15,7 +15,7 @@ export LC_ALL=C
 for file in $(ls sysstat/sa[0-9]*) ; do sar -A -f "$file"  >> sa.data.txt; done
 ```
 
-and then use [`ksar`](https://www.cyberciti.biz/tips/identifying-linux-bottlenecks-sar-graphs-with-ksar.html) to turn the result into pdf graphs.
+and then use [`ksar`](https://www.linux.com/news/visualize-sar-data-ksar) to turn the result into pdf graphs.
 
 There are 2 types of files in `sysstat`: `sa*` and `sar*`. The `sa`s are binaries updated every 10 mins or so. The `sar`s are text files generated once per day. Therefore you probably want to parse the `sa` files as they will be more current.
 
