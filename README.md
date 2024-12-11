@@ -1,9 +1,9 @@
 # dontpanic
 
 [![Go Report
-Card](https://goreportcard.com/badge/code.cloudfoundry.org/dontpanic)](https://goreportcard.com/report/code.cloudfoundry.org/gorouter)
+Card](https://goreportcard.com/badge/code.cloudfoundry.org/dontpanic)](https://goreportcard.com/report/code.cloudfoundry.org/dontpanic)
 [![Go
-Reference](https://pkg.go.dev/badge/code.cloudfoundry.org/dontpanic.svg)](https://pkg.go.dev/code.cloudfoundry.org/gorouter)
+Reference](https://pkg.go.dev/badge/code.cloudfoundry.org/dontpanic.svg)](https://pkg.go.dev/code.cloudfoundry.org/dontpanic)
 
 dontpanic is a tool for debugging issues with Garden containers and
 their host environment. It collects and tars all necessary data to help
