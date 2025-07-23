@@ -8,7 +8,7 @@ require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/onsi/ginkgo/v2 v2.23.4
-	github.com/onsi/gomega v1.37.0
+	github.com/onsi/gomega v1.38.0
 	golang.org/x/sys v0.34.0
 	gopkg.in/yaml.v2 v2.4.0
 )
