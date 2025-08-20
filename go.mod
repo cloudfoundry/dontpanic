@@ -7,13 +7,14 @@ toolchain go1.23.6
 require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/onsi/ginkgo/v2 v2.23.4
+	github.com/onsi/ginkgo/v2 v2.24.0
 	github.com/onsi/gomega v1.38.0
 	golang.org/x/sys v0.35.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
